@@ -38,12 +38,18 @@ void CTRUCK::Move(int limitX1, int limitX2) {
 
 void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
     if (mTexture1) {
-        // Đi bộ nặng nề: cứ mỗi 160px dịch chuyển đổi 1 frame đi bộ luân phiên (chậm lại gần gấp ba đầy uy lực)
-        int frameIndex = (std::abs(mX) / 160) % 2;
+        // Đi bộ nặng nề: cứ mỗi 90px dịch chuyển đổi 1 frame đi bộ luân phiên (nhanh hơn theo phản hồi người dùng)
+        int frameIndex = (std::abs(mX) / 90) % 2;
         SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
         if (!activeTex) activeTex = mTexture1;
 
-        SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
+        // Tăng kích thước vẽ trực quan lên 1.5 lần (Boss khổng lồ) để bù đắp viền trong suốt AI
+        float drawW = (float)mWidth * 1.5f;
+        float drawH = (float)mHeight * 1.5f;
+        float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
+        float drawY = (float)mY - (drawH - (float)mHeight) / 2.0f;
+
+        SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
         
         SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
@@ -124,12 +130,18 @@ void CCAR::Move(int limitX1, int limitX2) {
 
 void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
     if (mTexture1) {
-        // Thú húc siêu tốc: cứ mỗi 150px dịch chuyển đổi 1 frame chạy luân phiên (chậm lại gấp năm để thấy bước sải chân)
+        // Thú húc siêu tốc: cứ mỗi 150px dịch chuyển đổi 1 frame chạy luân phiên (chậm lại để thấy bước sải chân)
         int frameIndex = (std::abs(mX) / 150) % 2;
         SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
         if (!activeTex) activeTex = mTexture1;
 
-        SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
+        // Tăng kích thước vẽ trực quan (visual scale) lên 1.4 lần để bù đắp viền trong suốt của AI và tránh vỡ hình
+        float drawW = (float)mWidth * 1.4f;
+        float drawH = (float)mHeight * 1.4f;
+        float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
+        float drawY = (float)mY - (drawH - (float)mHeight) / 2.0f;
+
+        SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
         
         SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);

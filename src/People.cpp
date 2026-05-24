@@ -187,8 +187,8 @@ void CPEOPLE::draw(SDL_Renderer* renderer, CFont& font) {
 }
 
 bool CPEOPLE::isFinish() const {
-    // Vỉa hè về đích nằm ở biên trên (y <= 120px — top sidewalk)
-    return mY <= 120;
+    // Chỉ cho qua màn khi đã chạy hẳn vào làn vỉa hè trên (Y <= 40px — sidewalk_top)
+    return mY <= 40;
 }
 
 bool CPEOPLE::isImpact(CVEHICLE* v) {
