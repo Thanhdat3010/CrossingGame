@@ -13,6 +13,12 @@
     <ClCompile Include="D:\Code\CrossingGame\src\People.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="D:\Code\CrossingGame\src\Vehicle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="D:\Code\CrossingGame\src\Animal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="D:\Code\CrossingGame\CMakeLists.txt" />

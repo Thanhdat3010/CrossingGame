@@ -4,9 +4,14 @@
 #include <SDL3/SDL.h>
 #include "Font.h"
 #include "People.h"
+#include "Vehicle.h"
+#include "Animal.h"
+#include <vector>
 
 enum class GameState {
     MENU,
+    CHAR_SELECT,
+    STAGE_SELECT,
     PLAYING,
     PAUSED,
     GAMEOVER
@@ -25,11 +30,37 @@ private:
     // Texture của ảnh hai thanh kiếm
     SDL_Texture* mSwordTexture;
 
+    // Các texture bản đồ & quái vật (SAO theme PNGs)
+    SDL_Texture* mTruckTexture;
+    SDL_Texture* mCarTexture;
+    SDL_Texture* mDinoTexture;
+    SDL_Texture* mBirdTexture;
+    SDL_Texture* mBgPlayingTexture;
+    SDL_Texture* mSidewalkTopTexture;
+    SDL_Texture* mSidewalkBottomTexture;
+    SDL_Texture* mLaneRiverTexture;
+    SDL_Texture* mLaneForestTexture;
+    SDL_Texture* mLaneRoadTexture;
+
+
     // Người chơi
     CPEOPLE mPlayer;
 
+    // Danh sách các chướng ngại vật (xe/thú) trên các làn đường
+    std::vector<CTRUCK*> mTrucks;
+    std::vector<CCAR*> mCars;
+    std::vector<CDINAUSOR*> mDinos;
+    std::vector<CBIRD*> mBirds;
+
+    // Cấp độ màn chơi hiện tại
+    int mStage;
+    bool mIsInfinityMode; // Cờ hiệu chế độ Vô Tận (Infinity Mode)
+
     // Trạng thái quản lý Menu
     int mSelectedMenuOption; // 0: New Game, 1: Load Game, 2: Settings
+    int mSelectedCharOption; // 0: Kirito, 1: Asuna
+    int mSelectedStageOption;// 0: Stage 1, 1: Stage 2, 2: Stage 3, 3: Infinity Mode
+
     bool mShowMenuWarning;   // Hiển thị thông báo khi chọn Load/Settings
     float mWarningTimer;     // Đếm ngược thời gian tắt cảnh báo
     float mMenuAnimTimer;    // Bộ đếm thời gian animation cho menu
@@ -41,7 +72,12 @@ private:
 
     // Hàm vẽ riêng cho từng trạng thái
     void renderMenu();
+    void renderCharSelect();
+    void renderStageSelect();
     void renderPlaying();
+
+    // Hàm dọn dẹp các chướng ngại vật
+    void clearObstacles();
 
 public:
     CGAME();

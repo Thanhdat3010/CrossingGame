@@ -377,6 +377,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="D:\Code\CrossingGame\src\Game.cpp" />
     <ClCompile Include="D:\Code\CrossingGame\src\Font.cpp" />
     <ClCompile Include="D:\Code\CrossingGame\src\People.cpp" />
+    <ClCompile Include="D:\Code\CrossingGame\src\Vehicle.cpp" />
+    <ClCompile Include="D:\Code\CrossingGame\src\Animal.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="D:\Code\CrossingGame\build\ZERO_CHECK.vcxproj">

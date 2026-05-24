@@ -19,6 +19,8 @@ set(SOURCES
     src/Game.cpp
     src/Font.cpp
     src/People.cpp
+    src/Vehicle.cpp
+    src/Animal.cpp
 )
 
 # Tạo file thực thi
