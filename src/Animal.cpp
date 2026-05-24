@@ -6,7 +6,7 @@
 // TRIỂN KHAI LỚP CANIMAL (Base Class)
 // ====================================================================
 CANIMAL::CANIMAL(int x, int y, int speed, int direction)
-    : mX(x), mY(y), mSpeed(speed), mDirection(direction), mWidth(48), mHeight(48), mTexture(nullptr) {
+    : mX(x), mY(y), mSpeed(speed), mDirection(direction), mWidth(48), mHeight(48), mTexture1(nullptr), mTexture2(nullptr) {
 }
 
 CANIMAL::~CANIMAL() {}
@@ -18,7 +18,7 @@ CANIMAL::~CANIMAL() {}
 CDINAUSOR::CDINAUSOR(int x, int y, int speed, int direction)
     : CANIMAL(x, y, speed, direction) {
     mWidth = 110;  // Quái rừng rộng 110px
-    mHeight = 70;  // Cao 70px / lane 80px → gần phủ kín đường
+    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
 }
 
 CDINAUSOR::~CDINAUSOR() {}
@@ -42,10 +42,16 @@ void CDINAUSOR::Tell() {
 }
 
 void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font) {
-    if (mTexture) {
+    if (mTexture1) {
+        // Tính toán frame hiện tại dựa vào vị trí di chuyển mX để khớp nhịp chân chạm đất với tốc độ chạy thật
+        int frameIndex = (std::abs(mX) / 120) % 2; // Cứ đi 120px đổi 1 frame luân phiên (chậm lại gấp ba để có bước chạy tự nhiên, thư thả)
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
         SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_RenderTextureRotated(renderer, mTexture, NULL, &dstRect, 0.0, NULL, flip);
+        
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
     // Vẽ Khủng long T-Rex Pixel phong cách dễ thương (emerald green)
@@ -85,7 +91,7 @@ void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font) {
 
     // Hiệu ứng bước chạy chân (Chân đập liên tục nhịp nhàng theo thời gian)
     Uint64 ticks = SDL_GetTicks();
-    bool legState = (ticks / 150) % 2 == 0; // Đổi chân chạy mỗi 150ms
+    bool legState = (ticks / 450) % 2 == 0; // Đổi chân chạy mỗi 450ms (chậm lại gấp ba cho tự nhiên)
 
     SDL_SetRenderDrawColor(renderer, 24, 78, 55, 255); // Chân màu xanh sẫm hơn
     SDL_FRect leg1, leg2;
@@ -113,7 +119,7 @@ void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font) {
 CBIRD::CBIRD(int x, int y, int speed, int direction)
     : CANIMAL(x, y, speed, direction) {
     mWidth = 100;  // Quái bay rộng 100px
-    mHeight = 65;  // Cao 65px / lane 80px → gần phủ kín đường
+    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
 }
 
 CBIRD::~CBIRD() {}
@@ -140,10 +146,16 @@ void CBIRD::Tell() {
 }
 
 void CBIRD::draw(SDL_Renderer* renderer, CFont& font) {
-    if (mTexture) {
+    if (mTexture1) {
+        // Tính toán frame bay dựa vào vị trí mX
+        int frameIndex = (std::abs(mX) / 140) % 2; // Cứ đi 140px đổi 1 frame vỗ cánh luân phiên (chậm lại gấp bốn cho cánh vỗ uyển chuyển)
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
         SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_RenderTextureRotated(renderer, mTexture, NULL, &dstRect, 0.0, NULL, flip);
+        
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
     // Vẽ chim phượng hoàng lửa pixel đỏ hồng siêu dễ thương
@@ -176,9 +188,9 @@ void CBIRD::draw(SDL_Renderer* renderer, CFont& font) {
     }
     SDL_RenderFillRect(renderer, &tail);
 
-    // Animation Vỗ Cánh (Lên / Xuống) mỗi 100ms
+    // Animation Vỗ Cánh (Lên / Xuống) mỗi 300ms
     Uint64 ticks = SDL_GetTicks();
-    bool wingUp = (ticks / 100) % 2 == 0;
+    bool wingUp = (ticks / 300) % 2 == 0;
 
     SDL_SetRenderDrawColor(renderer, 48, 227, 202, 255); // Cánh chim màu Cyan ngọc bích nổi bật
     SDL_FRect wing;

@@ -31,14 +31,18 @@ private:
     SDL_Texture* mSwordTexture;
 
     // Các texture bản đồ & quái vật (SAO theme PNGs)
-    SDL_Texture* mTruckTexture;
-    SDL_Texture* mCarTexture;
-    SDL_Texture* mDinoTexture;
-    SDL_Texture* mBirdTexture;
+    SDL_Texture* mTruckTexture1;
+    SDL_Texture* mTruckTexture2;
+    SDL_Texture* mCarTexture1;
+    SDL_Texture* mCarTexture2;
+    SDL_Texture* mDinoTexture1;
+    SDL_Texture* mDinoTexture2;
+    SDL_Texture* mBirdTexture1;
+    SDL_Texture* mBirdTexture2;
     SDL_Texture* mBgPlayingTexture;
     SDL_Texture* mSidewalkTopTexture;
     SDL_Texture* mSidewalkBottomTexture;
-    SDL_Texture* mLaneRiverTexture;
+    SDL_Texture* mLaneRestTexture;
     SDL_Texture* mLaneForestTexture;
     SDL_Texture* mLaneRoadTexture;
 

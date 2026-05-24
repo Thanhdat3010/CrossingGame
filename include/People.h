@@ -19,6 +19,9 @@ private:
     bool mState;     // Trạng thái: true (Sống), false (Chết)
     int mSpeed;      // Tốc độ di chuyển mỗi bước (pixel)
 
+    float mDrawX, mDrawY;            // Tọa độ vẽ trượt mượt mà (Lerp)
+    float mAnimTimer;                // Bộ đếm thời gian hoạt ảnh nhấp nhô
+
     CharacterType mCharType;         // Nhân vật đang chọn
     SDL_Texture* mKiritoTexture;     // Texture ảnh của Kirito (PNG)
     SDL_Texture* mAsunaTexture;      // Texture ảnh của Asuna (PNG)
@@ -26,6 +29,9 @@ private:
 public:
     CPEOPLE();
     ~CPEOPLE();
+
+    // Cập nhật hoạt ảnh trượt và nhịp thở của nhân vật
+    void update(float deltaTime);
 
     // Reset lại tọa độ người chơi về điểm xuất phát mặc định
     void resetPosition();

@@ -7,9 +7,12 @@
 CGAME::CGAME() 
     : mWindow(nullptr), mRenderer(nullptr), mIsRunning(false), mState(GameState::MENU),
       mSwordTexture(nullptr), 
-      mTruckTexture(nullptr), mCarTexture(nullptr), mDinoTexture(nullptr), mBirdTexture(nullptr),
+      mTruckTexture1(nullptr), mTruckTexture2(nullptr),
+      mCarTexture1(nullptr), mCarTexture2(nullptr),
+      mDinoTexture1(nullptr), mDinoTexture2(nullptr),
+      mBirdTexture1(nullptr), mBirdTexture2(nullptr),
       mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
-      mLaneRiverTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
+      mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f) {}
@@ -68,14 +71,33 @@ bool CGAME::init(const char* title, int width, int height) {
     }
 
     // Load các ảnh PNG tùy chọn cho bản đồ & quái vật (SAO theme)
-    mTruckTexture = IMG_LoadTexture(mRenderer, "assets/truck.png");
-    mCarTexture = IMG_LoadTexture(mRenderer, "assets/car.png");
-    mDinoTexture = IMG_LoadTexture(mRenderer, "assets/dino.png");
-    mBirdTexture = IMG_LoadTexture(mRenderer, "assets/bird.png");
+    // 1. Truck
+    mTruckTexture1 = IMG_LoadTexture(mRenderer, "assets/truck1.png");
+    if (!mTruckTexture1) mTruckTexture1 = IMG_LoadTexture(mRenderer, "assets/truck.png");
+    mTruckTexture2 = IMG_LoadTexture(mRenderer, "assets/truck2.png");
+    if (!mTruckTexture2) mTruckTexture2 = mTruckTexture1;
+
+    // 2. Car
+    mCarTexture1 = IMG_LoadTexture(mRenderer, "assets/car1.png");
+    if (!mCarTexture1) mCarTexture1 = IMG_LoadTexture(mRenderer, "assets/car.png");
+    mCarTexture2 = IMG_LoadTexture(mRenderer, "assets/car2.png");
+    if (!mCarTexture2) mCarTexture2 = mCarTexture1;
+
+    // 3. Dino
+    mDinoTexture1 = IMG_LoadTexture(mRenderer, "assets/dino1.png");
+    if (!mDinoTexture1) mDinoTexture1 = IMG_LoadTexture(mRenderer, "assets/dino.png");
+    mDinoTexture2 = IMG_LoadTexture(mRenderer, "assets/dino2.png");
+    if (!mDinoTexture2) mDinoTexture2 = mDinoTexture1;
+
+    // 4. Bird
+    mBirdTexture1 = IMG_LoadTexture(mRenderer, "assets/bird1.png");
+    if (!mBirdTexture1) mBirdTexture1 = IMG_LoadTexture(mRenderer, "assets/bird.png");
+    mBirdTexture2 = IMG_LoadTexture(mRenderer, "assets/bird2.png");
+    if (!mBirdTexture2) mBirdTexture2 = mBirdTexture1;
     mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/bg_playing.png");
     mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_top.png");
     mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_bottom.png");
-    mLaneRiverTexture = IMG_LoadTexture(mRenderer, "assets/lane_river.png");
+    mLaneRestTexture = IMG_LoadTexture(mRenderer, "assets/lane_rest.png");
     mLaneForestTexture = IMG_LoadTexture(mRenderer, "assets/lane_forest.png");
     mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/lane_road.png");
 
@@ -229,6 +251,8 @@ void CGAME::update(float deltaTime) {
 
     // Logic khi chơi game
     if (mState == GameState::PLAYING) {
+        mPlayer.update(deltaTime); // Cập nhật hoạt ảnh trượt và nhấp nhô của người chơi
+
         // 1. Di chuyển toàn bộ xe cộ và động vật
         for (auto t : mTrucks) {
             t->Move(0, 1280);
@@ -932,18 +956,13 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 4. LÀN 3: ROAD (Y = 280 đến 360, 80px, CCAR) ───
-    if (mLaneRoadTexture) {
-        tileTex(mLaneRoadTexture, 280.0f, 1280.0f, 80.0f);
+    // ─── 4. LÀN 3: LÀN NGHỈ (Resting Lane - Y = 280 đến 360, 80px, AN TOÀN) ───
+    if (mLaneRestTexture) {
+        tileTex(mLaneRestTexture, 280.0f, 1280.0f, 80.0f);
     } else {
-        SDL_SetRenderDrawColor(mRenderer, 44, 52, 70, 255);
-        SDL_FRect roadLane = { 0.0f, 280.0f, 1280.0f, 80.0f };
-        SDL_RenderFillRect(mRenderer, &roadLane);
-        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 200);
-        for (int x = 0; x < 1280; x += 80) {
-            SDL_FRect dash = { (float)x, 318.0f, 30.0f, 4.0f };
-            SDL_RenderFillRect(mRenderer, &dash);
-        }
+        SDL_SetRenderDrawColor(mRenderer, 120, 190, 140, 255); // Xanh ngọc lục bảo an toàn nhạt
+        SDL_FRect restLane = { 0.0f, 280.0f, 1280.0f, 80.0f };
+        SDL_RenderFillRect(mRenderer, &restLane);
     }
 
     // ─── 5. LÀN 4: FOREST (Y = 360 đến 440, 80px, CTRUCK) ───
@@ -1062,51 +1081,48 @@ void CGAME::resetGame() {
     clearObstacles(); // Dọn dẹp chướng ngại vật cũ tránh leak
 
     // Phân chia số lượng chướng ngại vật tăng dần theo màn chơi
-    int count = 1 + (mStage / 2); // Mỗi 2 stage thì tăng 1 xe mỗi làn (giới hạn mật độ vừa phải)
-    if (count > 4) count = 4;     // Giới hạn tối đa 4 xe/làn tránh nghẽn đường hoàn toàn
+    // Phân chia số lượng chướng ngại vật tăng dần theo màn chơi (Mật độ liên tục 3-5 con/làn)
+    int count = 2 + mStage; 
+    if (count > 5) count = 5;     // Giới hạn tối đa 5 con/làn để có dòng chảy liên tục nhưng vẫn có khe hở đi qua
 
     // Tính toán tốc độ tăng theo stage
     int baseSpeed = 2 + mStage;   // Tốc độ dịch chuyển mỗi frame
 
-    // 1. Spawning Birds (Lane 1: Y=120-200, Y = 128, direction = -1) & (Lane 5: Y=440-520, Y = 448, direction = -1)
+    // 1. Spawning Birds (Lane 1: Road - Y=120-200, Y = 120, direction = -1 - Chim bay RẤT NHANH!)
     for (int i = 0; i < count; ++i) {
-        int startX1 = i * (1280 / count) + (rand() % 50);
-        CBIRD* b1 = new CBIRD(startX1, 128, baseSpeed + 1, -1);
-        b1->setTexture(mBirdTexture);
-        mBirds.push_back(b1);
-
-        int startX2 = i * (1280 / count) + (rand() % 50);
-        CBIRD* b2 = new CBIRD(startX2, 448, baseSpeed + 1, -1);
-        b2->setTexture(mBirdTexture);
-        mBirds.push_back(b2);
+        int startX = i * (1280 / count) + (rand() % 50);
+        CBIRD* b = new CBIRD(startX, 120, baseSpeed + 2, -1);
+        b->setTextures(mBirdTexture1, mBirdTexture2);
+        mBirds.push_back(b);
     }
 
-    // 2. Spawning Dinosaurs (Lane 2: Y=200-280, Y = 205, direction = 1) & (Lane 6: Y=520-600, Y = 525, direction = 1)
+    // 2. Spawning Dinosaurs (Lane 2: Forest - Y=200-280, Y = 200, direction = 1) & (Lane 4: Forest - Y=360-440, Y = 360, direction = 1 - Tốc độ trung bình)
     for (int i = 0; i < count; ++i) {
         int startX1 = i * (1280 / count) + (rand() % 50);
-        CDINAUSOR* d1 = new CDINAUSOR(startX1, 205, baseSpeed - 1, 1);
-        d1->setTexture(mDinoTexture);
+        CDINAUSOR* d1 = new CDINAUSOR(startX1, 200, baseSpeed, 1);
+        d1->setTextures(mDinoTexture1, mDinoTexture2);
         mDinos.push_back(d1);
 
         int startX2 = i * (1280 / count) + (rand() % 50);
-        CDINAUSOR* d2 = new CDINAUSOR(startX2, 525, baseSpeed - 1, 1);
-        d2->setTexture(mDinoTexture);
+        CDINAUSOR* d2 = new CDINAUSOR(startX2, 360, baseSpeed, 1);
+        d2->setTextures(mDinoTexture1, mDinoTexture2);
         mDinos.push_back(d2);
     }
 
-    // 3. Spawning Cars (Lane 3: Y=280-360, Y = 288, direction = -1)
+    // 3. Spawning Cars (Lane 5: Road - Y=440-520, Y = 440, direction = -1 - Thú húc RẤT NHANH!)
     for (int i = 0; i < count; ++i) {
         int startX = i * (1280 / count) + (rand() % 50);
-        CCAR* c = new CCAR(startX, 288, baseSpeed + 1, -1);
-        c->setTexture(mCarTexture);
+        CCAR* c = new CCAR(startX, 440, baseSpeed + 2, -1);
+        c->setTextures(mCarTexture1, mCarTexture2);
         mCars.push_back(c);
     }
 
-    // 4. Spawning Trucks (Lane 4: Y=360-440, Y = 365, direction = 1)
+    // 4. Spawning Trucks (Lane 6: Forest - Y=520-600, Y = 520, direction = 1 - Siêu Boss di chuyển RẤT CHẬM!)
     for (int i = 0; i < count; ++i) {
         int startX = i * (1280 / count) + (rand() % 50);
-        CTRUCK* t = new CTRUCK(startX, 365, baseSpeed, 1);
-        t->setTexture(mTruckTexture);
+        int bossSpeed = 1 + (mStage / 3); // Cực kỳ chậm rãi (tốc độ 1 ở Stage 1-2, 2 ở Stage 3)
+        CTRUCK* t = new CTRUCK(startX, 520, bossSpeed, 1);
+        t->setTextures(mTruckTexture1, mTruckTexture2);
         mTrucks.push_back(t);
     }
 }
@@ -1148,6 +1164,24 @@ void CGAME::clearObstacles() {
 void CGAME::exitGame() {
     mIsRunning = false;
     clearObstacles(); // Dọn dẹp chướng ngại vật tránh rò rỉ bộ nhớ!
+
+    // Giải phóng các texture quái vật
+    if (mTruckTexture1) { SDL_DestroyTexture(mTruckTexture1); mTruckTexture1 = nullptr; }
+    if (mTruckTexture2) { SDL_DestroyTexture(mTruckTexture2); mTruckTexture2 = nullptr; }
+    if (mCarTexture1) { SDL_DestroyTexture(mCarTexture1); mCarTexture1 = nullptr; }
+    if (mCarTexture2) { SDL_DestroyTexture(mCarTexture2); mCarTexture2 = nullptr; }
+    if (mDinoTexture1) { SDL_DestroyTexture(mDinoTexture1); mDinoTexture1 = nullptr; }
+    if (mDinoTexture2) { SDL_DestroyTexture(mDinoTexture2); mDinoTexture2 = nullptr; }
+    if (mBirdTexture1) { SDL_DestroyTexture(mBirdTexture1); mBirdTexture1 = nullptr; }
+    if (mBirdTexture2) { SDL_DestroyTexture(mBirdTexture2); mBirdTexture2 = nullptr; }
+
+    // Giải phóng các texture bản đồ
+    if (mBgPlayingTexture) { SDL_DestroyTexture(mBgPlayingTexture); mBgPlayingTexture = nullptr; }
+    if (mSidewalkTopTexture) { SDL_DestroyTexture(mSidewalkTopTexture); mSidewalkTopTexture = nullptr; }
+    if (mSidewalkBottomTexture) { SDL_DestroyTexture(mSidewalkBottomTexture); mSidewalkBottomTexture = nullptr; }
+    if (mLaneRestTexture) { SDL_DestroyTexture(mLaneRestTexture); mLaneRestTexture = nullptr; }
+    if (mLaneForestTexture) { SDL_DestroyTexture(mLaneForestTexture); mLaneForestTexture = nullptr; }
+    if (mLaneRoadTexture) { SDL_DestroyTexture(mLaneRoadTexture); mLaneRoadTexture = nullptr; }
     
     if (mSwordTexture) {
         SDL_DestroyTexture(mSwordTexture);

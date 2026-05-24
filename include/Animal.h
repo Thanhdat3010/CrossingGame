@@ -14,7 +14,8 @@ protected:
     int mWidth, mHeight;// Kích thước hộp biên va chạm
     int mSpeed;         // Tốc độ di chuyển (pixel/s)
     int mDirection;     // Hướng di chuyển (1: Trái -> Phải, -1: Phải -> Trái)
-    SDL_Texture* mTexture; // Texture hình ảnh của động vật (PNG)
+    SDL_Texture* mTexture1; // Texture frame 1 (PNG)
+    SDL_Texture* mTexture2; // Texture frame 2 (PNG)
 
 public:
     CANIMAL(int x, int y, int speed, int direction);
@@ -34,7 +35,7 @@ public:
     int getY() const { return mY; }
     int getWidth() const { return mWidth; }
     int getHeight() const { return mHeight; }
-    SDL_Texture* getTexture() const { return mTexture; }
+    SDL_Texture* getTexture() const { return mTexture1; }
 
     // ═════ HITBOX (Tách biệt visual và collision) ═════
     SDL_FRect getHitbox() const {
@@ -48,7 +49,17 @@ public:
     void setX(int x) { mX = x; }
     void setY(int y) { mY = y; }
     void setSpeed(int speed) { mSpeed = speed; }
-    void setTexture(SDL_Texture* tex) { mTexture = tex; }
+    void setTextures(SDL_Texture* tex1, SDL_Texture* tex2) { 
+        mTexture1 = tex1; 
+        mTexture2 = tex2; 
+        if (mTexture1) {
+            float texW = 0, texH = 0;
+            SDL_GetTextureSize(mTexture1, &texW, &texH);
+            if (texW > 0 && texH > 0) {
+                mWidth = (int)((float)mHeight * (texW / texH));
+            }
+        }
+    }
 };
 
 

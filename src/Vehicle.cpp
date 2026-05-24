@@ -4,7 +4,7 @@
 // TRIỂN KHAI LỚP CVEHICLE (Base Class)
 // ====================================================================
 CVEHICLE::CVEHICLE(int x, int y, int speed, int direction)
-    : mX(x), mY(y), mSpeed(speed), mDirection(direction), mWidth(64), mHeight(48), mTexture(nullptr) {
+    : mX(x), mY(y), mSpeed(speed), mDirection(direction), mWidth(64), mHeight(48), mTexture1(nullptr), mTexture2(nullptr) {
     // Giá trị width/height mặc định, các lớp con sẽ ghi đè lên để khớp kích thước vẽ
 }
 
@@ -17,7 +17,7 @@ CVEHICLE::~CVEHICLE() {}
 CTRUCK::CTRUCK(int x, int y, int speed, int direction)
     : CVEHICLE(x, y, speed, direction) {
     mWidth = 140;  // Quái khổng lồ rộng 140px
-    mHeight = 70;  // Cao 70px / lane 80px → gần phủ kín đường
+    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
 }
 
 CTRUCK::~CTRUCK() {}
@@ -37,10 +37,16 @@ void CTRUCK::Move(int limitX1, int limitX2) {
 }
 
 void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
-    if (mTexture) {
+    if (mTexture1) {
+        // Đi bộ nặng nề: cứ mỗi 160px dịch chuyển đổi 1 frame đi bộ luân phiên (chậm lại gần gấp ba đầy uy lực)
+        int frameIndex = (std::abs(mX) / 160) % 2;
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
         SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_RenderTextureRotated(renderer, mTexture, NULL, &dstRect, 0.0, NULL, flip);
+        
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
     // Vẽ xe tải retro pixel bằng các hình chữ nhật lồng nhau
@@ -100,7 +106,7 @@ void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
 CCAR::CCAR(int x, int y, int speed, int direction)
     : CVEHICLE(x, y, speed, direction) {
     mWidth = 120;  // Quái tốc độ rộng 120px
-    mHeight = 65;  // Cao 65px / lane 80px → gần phủ kín đường
+    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
 }
 
 CCAR::~CCAR() {}
@@ -117,10 +123,16 @@ void CCAR::Move(int limitX1, int limitX2) {
 }
 
 void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
-    if (mTexture) {
+    if (mTexture1) {
+        // Thú húc siêu tốc: cứ mỗi 150px dịch chuyển đổi 1 frame chạy luân phiên (chậm lại gấp năm để thấy bước sải chân)
+        int frameIndex = (std::abs(mX) / 150) % 2;
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
         SDL_FRect dstRect = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_RenderTextureRotated(renderer, mTexture, NULL, &dstRect, 0.0, NULL, flip);
+        
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
     // Vẽ xe thể thao thon gọn, khí động học
