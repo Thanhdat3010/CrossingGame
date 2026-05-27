@@ -1,3 +1,0 @@
-D:/Code/CrossingGame/build/CMakeFiles/CrossingGame.dir
-D:/Code/CrossingGame/build/CMakeFiles/ALL_BUILD.dir
-D:/Code/CrossingGame/build/CMakeFiles/ZERO_CHECK.dir
