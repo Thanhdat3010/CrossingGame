@@ -14,7 +14,8 @@ CGAME::CGAME()
       mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
-      mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
+    mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
+    mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f) {}
 
 CGAME::~CGAME() {
@@ -107,6 +108,8 @@ bool CGAME::init(const char* title, int width, int height) {
     mIsRunning = true;
     mState = GameState::MENU; // Bắt đầu ở trạng thái Menu chính
 
+    srand((unsigned)SDL_GetTicks());
+
     std::cout << "CGAME initialized successfully!" << std::endl;
     return true;
 }
@@ -176,22 +179,20 @@ void CGAME::handleInput() {
                 }
             }
             else if (mState == GameState::STAGE_SELECT) {
-                // Dùng W/S hoặc Lên/Xuống để chọn Stage
+                // Dùng W/S hoặc Lên/Xuống để chọn chế độ
                 if (key == SDLK_W || key == SDLK_UP) {
-                    mSelectedStageOption = (mSelectedStageOption - 1 + 4) % 4;
+                    mSelectedStageOption = (mSelectedStageOption - 1 + 2) % 2;
                 }
                 else if (key == SDLK_S || key == SDLK_DOWN) {
-                    mSelectedStageOption = (mSelectedStageOption + 1) % 4;
+                    mSelectedStageOption = (mSelectedStageOption + 1) % 2;
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                    if (mSelectedStageOption <= 2) {
-                        mStage = mSelectedStageOption + 1; // Stage 1, 2, 3
-                        mIsInfinityMode = false;
+                    if (mSelectedStageOption == 0) {
+                        mIsInfinityMode = false; // Tutorial
                     } else {
-                        mStage = 1; // Vô tận bắt đầu từ Stage 1
-                        mIsInfinityMode = true;
+                        mIsInfinityMode = true; // Infinite
                     }
-                    resetGame(); // Spawn quái vật
+                    resetGame();
                     mState = GameState::PLAYING; // Vào chơi!
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -199,12 +200,18 @@ void CGAME::handleInput() {
                 }
             }
             else if (mState == GameState::PLAYING) {
+                int topLimit = 40;
+                int bottomLimit = 600;
+                if (mIsInfinityMode) {
+                    topLimit = (int)mCameraY + 40;
+                    bottomLimit = (int)mCameraY + 600;
+                }
                 // Di chuyển nhân vật bằng W/A/S/D hoặc các phím mũi tên
                 if (key == SDLK_W || key == SDLK_UP) {
-                    mPlayer.Up(40); // Biên trên (vỉa hè đích Y:0-120)
+                    mPlayer.Up(topLimit);
                 }
                 else if (key == SDLK_S || key == SDLK_DOWN) {
-                    mPlayer.Down(600); // Biên dưới (vỉa hè xuất phát Y:600-720)
+                    mPlayer.Down(bottomLimit);
                 }
                 else if (key == SDLK_A || key == SDLK_LEFT) {
                     mPlayer.Left(0); // Biên trái
@@ -251,6 +258,10 @@ void CGAME::update(float deltaTime) {
 
     // Logic khi chơi game
     if (mState == GameState::PLAYING) {
+        if (mIsInfinityMode) {
+            updateInfinite(deltaTime);
+            return;
+        }
         mPlayer.update(deltaTime); // Cập nhật hoạt ảnh trượt và nhấp nhô của người chơi
 
         // 1. Di chuyển toàn bộ xe cộ và động vật
@@ -270,19 +281,7 @@ void CGAME::update(float deltaTime) {
         // 2. Kiểm tra nếu người chơi băng qua đường thành công (về đích)
         // Check trước khi kiểm tra va chạm để tránh chết oan khi đã chạm chân vào vỉa hè an toàn.
         if (mPlayer.isFinish()) {
-            if (mIsInfinityMode) {
-                mStage++; // Chế độ vô tận: cứ tăng stage liên tục!
-                resetGame();
-            } else {
-                // Chế độ chơi theo màn chính
-                if (mStage < 3) {
-                    mStage++; // Lên màn tiếp theo
-                    resetGame();
-                } else {
-                    // Chiến thắng Stage 3! Hoàn thành game!
-                    mState = GameState::GAMEOVER; // Đưa về màn hình kết thúc (sẽ hiển thị VICTORY vì không chết)
-                }
-            }
+            mState = GameState::GAMEOVER; // Tutorial hoàn thành
             return;
         }
 
@@ -357,7 +356,11 @@ void CGAME::render() {
                 SDL_Color whiteColor = {255, 255, 255, 255};
                 SDL_Color goldColor = {255, 215, 0, 255};
                 mFont.drawTextCentered(mRenderer, "YOU DIED", 240, 5, goldColor);
-                mFont.drawTextCentered(mRenderer, "STAGE REACHED: " + std::to_string(mStage), 320, 2, whiteColor);
+                if (mIsInfinityMode) {
+                    mFont.drawTextCentered(mRenderer, "INFINITE LV: " + std::to_string(mInfiniteLevel), 320, 2, whiteColor);
+                } else {
+                    mFont.drawTextCentered(mRenderer, "STAGE REACHED: " + std::to_string(mStage), 320, 2, whiteColor);
+                }
                 mFont.drawTextCentered(mRenderer, "PRESS 'Y' TO CONTINUE", 390, 2, whiteColor);
                 mFont.drawTextCentered(mRenderer, "PRESS 'ESC' TO GO TO MENU", 440, 1, {180, 180, 180, 255});
             } else {
@@ -843,18 +846,16 @@ void CGAME::renderStageSelect() {
     SDL_RenderFillRect(mRenderer, &c4);
 
     // ─── 4. CÁC TÙY CHỌN MÀN CHƠI ─────────────────────────────────
-    std::string stages[4] = {
-        "STAGE 1: FOREST ROAD   (DANGER: * )",
-        "STAGE 2: DESERT HIGHWAY (DANGER: *** )",
-        "STAGE 3: DRAGON LAIR    (DANGER: ***** )",
-        "INFINITY MODE: SURVIVAL (DANGER: UNLIMITED)"
+    std::string stages[2] = {
+        "TUTORIAL: 1 MAP (SAFE START)",
+        "INFINITE MODE: SURVIVAL"
     };
 
     SDL_Color normalColor  = {140, 160, 180, 255};
     SDL_Color selectColor  = {255, 215, 0, 255};
 
-    for (int i = 0; i < 4; ++i) {
-        int yPos = 250 + i * 80;
+    for (int i = 0; i < 2; ++i) {
+        int yPos = 280 + i * 120;
 
         if (mSelectedStageOption == i) {
             // Thanh highlight cho màn được chọn
@@ -884,6 +885,100 @@ void CGAME::renderStageSelect() {
 // ====================================================================
 // RENDER PLAYING — Giao diện khi đang chơi game (SAO / Aincrad Theme)
 void CGAME::renderPlaying() {
+    if (mIsInfinityMode) {
+        // Infinite mode: render lanes theo camera và danh sách lane động
+        auto tileTex = [&](SDL_Texture* tex, float laneY, float laneW, float laneH) {
+            float texW = 0, texH = 0;
+            SDL_GetTextureSize(tex, &texW, &texH);
+            if (texW <= 0 || texH <= 0) return;
+
+            float tileW = texW * (laneH / texH);
+
+            for (float x = 0.0f; x < laneW; x += tileW) {
+                float drawW = (x + tileW > laneW) ? (laneW - x) : tileW;
+                float srcW = texW * (drawW / tileW);
+                SDL_FRect srcRect = { 0.0f, 0.0f, srcW, texH };
+                SDL_FRect dstRect = { x, laneY, drawW, laneH };
+                SDL_RenderTexture(mRenderer, tex, &srcRect, &dstRect);
+            }
+        };
+
+        for (const auto& lane : mLanes) {
+            float screenY = (float)lane.worldY - mCameraY;
+            if (screenY < -mLaneHeight || screenY > 720.0f) continue;
+
+            bool isRoad = (lane.type == LaneType::ROAD_CAR || lane.type == LaneType::ROAD_BIRD);
+            bool isForest = (lane.type == LaneType::FOREST_DINO || lane.type == LaneType::FOREST_TRUCK);
+
+            if (lane.type == LaneType::REST) {
+                if (mLaneRestTexture) {
+                    tileTex(mLaneRestTexture, screenY, 1280.0f, (float)mLaneHeight);
+                } else {
+                    SDL_SetRenderDrawColor(mRenderer, 120, 190, 140, 255);
+                    SDL_FRect restLane = { 0.0f, screenY, 1280.0f, (float)mLaneHeight };
+                    SDL_RenderFillRect(mRenderer, &restLane);
+                }
+            } else if (isRoad) {
+                if (mLaneRoadTexture) {
+                    tileTex(mLaneRoadTexture, screenY, 1280.0f, (float)mLaneHeight);
+                } else {
+                    SDL_SetRenderDrawColor(mRenderer, 44, 52, 70, 255);
+                    SDL_FRect roadLane = { 0.0f, screenY, 1280.0f, (float)mLaneHeight };
+                    SDL_RenderFillRect(mRenderer, &roadLane);
+                    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 200);
+                    for (int x = 0; x < 1280; x += 80) {
+                        SDL_FRect dash = { (float)x, screenY + 38.0f, 30.0f, 4.0f };
+                        SDL_RenderFillRect(mRenderer, &dash);
+                    }
+                }
+            } else if (isForest) {
+                if (mLaneForestTexture) {
+                    tileTex(mLaneForestTexture, screenY, 1280.0f, (float)mLaneHeight);
+                } else {
+                    SDL_SetRenderDrawColor(mRenderer, 34, 150, 72, 255);
+                    SDL_FRect forestLane = { 0.0f, screenY, 1280.0f, (float)mLaneHeight };
+                    SDL_RenderFillRect(mRenderer, &forestLane);
+                    SDL_SetRenderDrawColor(mRenderer, 20, 105, 50, 255);
+                    for (int x = 40; x < 1280; x += 140) {
+                        SDL_FRect grass = { (float)x, screenY + 20.0f, 8.0f, 20.0f };
+                        SDL_RenderFillRect(mRenderer, &grass);
+                    }
+                }
+            }
+
+            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 120);
+            SDL_FRect border = { 0.0f, screenY - 1.0f, 1280.0f, 2.0f };
+            SDL_RenderFillRect(mRenderer, &border);
+        }
+
+        for (auto t : mTrucks) {
+            t->draw(mRenderer, mFont, mCameraY);
+        }
+        for (auto c : mCars) {
+            c->draw(mRenderer, mFont, mCameraY);
+        }
+        for (auto d : mDinos) {
+            d->draw(mRenderer, mFont, mCameraY);
+        }
+        for (auto b : mBirds) {
+            b->draw(mRenderer, mFont, mCameraY);
+        }
+
+        mPlayer.draw(mRenderer, mFont, mCameraY);
+
+        SDL_Color hudColor = {255, 255, 255, 255};
+        SDL_Color cyanGlow = {80, 200, 255, 255};
+        SDL_Color shadow = {0, 0, 0, 180};
+        std::string hudStageText = "INFINITE LV " + std::to_string(mInfiniteLevel);
+
+        mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
+        mFont.drawText(mRenderer, hudStageText, 20, 24, 2, cyanGlow);
+
+        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 882, 26, 2, shadow);
+        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 880, 24, 2, hudColor);
+        return;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // HELPER: Tile texture lặp liên tục theo chiều ngang (không giãn)
     // Ảnh sẽ được giữ nguyên tỷ lệ gốc, lặp liên tục để phủ kín lane
@@ -1036,30 +1131,26 @@ void CGAME::renderPlaying() {
 
     // ─── 8. VẼ CHƯỚNG NGẠI VẬT (Xe cộ và Quái vật) ───────────────────
     for (auto t : mTrucks) {
-        t->draw(mRenderer, mFont);
+        t->draw(mRenderer, mFont, 0.0f);
     }
     for (auto c : mCars) {
-        c->draw(mRenderer, mFont);
+        c->draw(mRenderer, mFont, 0.0f);
     }
     for (auto d : mDinos) {
-        d->draw(mRenderer, mFont);
+        d->draw(mRenderer, mFont, 0.0f);
     }
     for (auto b : mBirds) {
-        b->draw(mRenderer, mFont);
+        b->draw(mRenderer, mFont, 0.0f);
     }
 
     // ─── 9. VẼ NGƯỜI CHƠI (Đã được phóng to cực đại!) ──────────────────
-    mPlayer.draw(mRenderer, mFont);
+    mPlayer.draw(mRenderer, mFont, 0.0f);
 
     // ─── 10. HUD THÔNG TIN MÀN CHƠI (Neon White & Cyan rực rỡ) ───────
     SDL_Color hudColor = {255, 255, 255, 255};
     SDL_Color cyanGlow = {80, 200, 255, 255};
     std::string hudStageText;
-    if (mIsInfinityMode) {
-        hudStageText = "STAGE: INFINITY (Lv " + std::to_string(mStage) + ")";
-    } else {
-        hudStageText = "STAGE: " + std::to_string(mStage) + " / 3";
-    }
+    hudStageText = "MODE: TUTORIAL";
     
     // Vẽ chữ HUD bóng đổ
     SDL_Color shadow = {0, 0, 0, 180};
@@ -1077,53 +1168,262 @@ void CGAME::startGame() {
 }
 
 void CGAME::resetGame() {
+    if (mIsInfinityMode) {
+        resetInfinite();
+    } else {
+        resetTutorial();
+    }
+}
+
+int CGAME::randomRange(int minValue, int maxValue) const {
+    if (maxValue <= minValue) return minValue;
+    return minValue + (rand() % (maxValue - minValue + 1));
+}
+
+void CGAME::resetTutorial() {
+    mIsInfinityMode = false;
+    mStage = 1;
+    mInfiniteLevel = 1;
+    mCameraY = 0.0f;
+    mLanes.clear();
+
     mPlayer.resetPosition();
-    clearObstacles(); // Dọn dẹp chướng ngại vật cũ tránh leak
+    clearObstacles();
 
-    // Phân chia số lượng chướng ngại vật tăng dần theo màn chơi
-    // Phân chia số lượng chướng ngại vật tăng dần theo màn chơi (Mật độ liên tục 3-5 con/làn)
-    int count = 2 + mStage; 
-    if (count > 5) count = 5;     // Giới hạn tối đa 5 con/làn để có dòng chảy liên tục nhưng vẫn có khe hở đi qua
+    // Tutorial: lane cố định + quái cố định
+    const int birdY = 120;
+    const int dinoY1 = 200;
+    const int dinoY2 = 360;
+    const int carY = 440;
+    const int truckY = 520;
 
-    // Tính toán tốc độ tăng theo stage
-    int baseSpeed = 2 + mStage;   // Tốc độ dịch chuyển mỗi frame
+    int birdXs[] = {100, 520, 900};
+    int dinoXs[] = {150, 650, 1050};
+    int carXs[] = {200, 600, 1000};
+    int truckXs[] = {100, 500, 900};
 
-    // 1. Spawning Birds (Lane 1: Road - Y=120-200, Y = 120, direction = -1 - Chim bay RẤT NHANH!)
-    for (int i = 0; i < count; ++i) {
-        int startX = i * (1280 / count) + (rand() % 50);
-        CBIRD* b = new CBIRD(startX, 120, baseSpeed + 2, -1);
+    for (int x : birdXs) {
+        CBIRD* b = new CBIRD(x, birdY, 4, -1);
         b->setTextures(mBirdTexture1, mBirdTexture2);
         mBirds.push_back(b);
     }
 
-    // 2. Spawning Dinosaurs (Lane 2: Forest - Y=200-280, Y = 200, direction = 1) & (Lane 4: Forest - Y=360-440, Y = 360, direction = 1 - Tốc độ trung bình)
-    for (int i = 0; i < count; ++i) {
-        int startX1 = i * (1280 / count) + (rand() % 50);
-        CDINAUSOR* d1 = new CDINAUSOR(startX1, 200, baseSpeed, 1);
+    for (int x : dinoXs) {
+        CDINAUSOR* d1 = new CDINAUSOR(x, dinoY1, 3, 1);
         d1->setTextures(mDinoTexture1, mDinoTexture2);
         mDinos.push_back(d1);
 
-        int startX2 = i * (1280 / count) + (rand() % 50);
-        CDINAUSOR* d2 = new CDINAUSOR(startX2, 360, baseSpeed, 1);
+        CDINAUSOR* d2 = new CDINAUSOR(x + 80, dinoY2, 3, 1);
         d2->setTextures(mDinoTexture1, mDinoTexture2);
         mDinos.push_back(d2);
     }
 
-    // 3. Spawning Cars (Lane 5: Road - Y=440-520, Y = 440, direction = -1 - Thú húc RẤT NHANH!)
-    for (int i = 0; i < count; ++i) {
-        int startX = i * (1280 / count) + (rand() % 50);
-        CCAR* c = new CCAR(startX, 440, baseSpeed + 2, -1);
+    for (int x : carXs) {
+        CCAR* c = new CCAR(x, carY, 4, -1);
         c->setTextures(mCarTexture1, mCarTexture2);
         mCars.push_back(c);
     }
 
-    // 4. Spawning Trucks (Lane 6: Forest - Y=520-600, Y = 520, direction = 1 - Siêu Boss di chuyển RẤT CHẬM!)
-    for (int i = 0; i < count; ++i) {
-        int startX = i * (1280 / count) + (rand() % 50);
-        int bossSpeed = 1 + (mStage / 3); // Cực kỳ chậm rãi (tốc độ 1 ở Stage 1-2, 2 ở Stage 3)
-        CTRUCK* t = new CTRUCK(startX, 520, bossSpeed, 1);
+    for (int x : truckXs) {
+        CTRUCK* t = new CTRUCK(x, truckY, 2, 1);
         t->setTextures(mTruckTexture1, mTruckTexture2);
         mTrucks.push_back(t);
+    }
+}
+
+void CGAME::resetInfinite() {
+    mIsInfinityMode = true;
+    mStage = 1;
+    mInfiniteLevel = 1;
+    mCameraY = 0.0f;
+    mLanePatternIndex = 0;
+
+    mPlayer.resetPosition();
+    clearObstacles();
+    initInfiniteLanes();
+}
+
+void CGAME::initInfiniteLanes() {
+    mLanes.clear();
+
+    // Lane xuất phát an toàn
+    Lane startLane;
+    startLane.type = LaneType::REST;
+    startLane.worldY = 600;
+    mLanes.push_back(startLane);
+
+    while (mLanes.front().worldY > -mLaneHeight * 3) {
+        addLaneAbove();
+    }
+}
+
+void CGAME::addLaneAbove() {
+    static const LaneType pattern[] = {
+        LaneType::ROAD_CAR,
+        LaneType::FOREST_DINO,
+        LaneType::REST,
+        LaneType::FOREST_TRUCK,
+        LaneType::ROAD_BIRD,
+        LaneType::FOREST_DINO
+    };
+    const int patternCount = (int)(sizeof(pattern) / sizeof(pattern[0]));
+
+    Lane lane;
+    lane.type = pattern[mLanePatternIndex % patternCount];
+    lane.worldY = mLanes.front().worldY - mLaneHeight;
+    mLanePatternIndex++;
+
+    mLanes.insert(mLanes.begin(), lane);
+    spawnObstaclesForLane(lane);
+}
+
+void CGAME::pruneLanes() {
+    while (!mLanes.empty()) {
+        float screenY = (float)mLanes.back().worldY - mCameraY;
+        if (screenY <= 720.0f + mLaneHeight * 2) break;
+        mLanes.pop_back();
+    }
+}
+
+void CGAME::spawnObstaclesForLane(const Lane& lane) {
+    if (lane.type == LaneType::REST) return;
+
+    int speedBoost = mInfiniteLevel / 3;
+    int count = randomRange(2, 4);
+    int spacing = 1280 / count;
+
+    if (lane.type == LaneType::ROAD_CAR) {
+        for (int i = 0; i < count; ++i) {
+            int startX = i * spacing + randomRange(0, spacing - 40);
+            int speed = randomRange(3 + speedBoost, 5 + speedBoost);
+            CCAR* c = new CCAR(startX, lane.worldY, speed, -1);
+            c->setTextures(mCarTexture1, mCarTexture2);
+            mCars.push_back(c);
+        }
+        return;
+    }
+
+    if (lane.type == LaneType::ROAD_BIRD) {
+        for (int i = 0; i < count; ++i) {
+            int startX = i * spacing + randomRange(0, spacing - 40);
+            int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+            CBIRD* b = new CBIRD(startX, lane.worldY, speed, -1);
+            b->setTextures(mBirdTexture1, mBirdTexture2);
+            mBirds.push_back(b);
+        }
+        return;
+    }
+
+    if (lane.type == LaneType::FOREST_DINO) {
+        for (int i = 0; i < count; ++i) {
+            int startX = i * spacing + randomRange(0, spacing - 40);
+            int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+            CDINAUSOR* d = new CDINAUSOR(startX, lane.worldY, speed, 1);
+            d->setTextures(mDinoTexture1, mDinoTexture2);
+            mDinos.push_back(d);
+        }
+        return;
+    }
+
+    if (lane.type == LaneType::FOREST_TRUCK) {
+        for (int i = 0; i < count; ++i) {
+            int startX = i * spacing + randomRange(0, spacing - 40);
+            int speed = randomRange(1 + speedBoost, 3 + speedBoost);
+            CTRUCK* t = new CTRUCK(startX, lane.worldY, speed, 1);
+            t->setTextures(mTruckTexture1, mTruckTexture2);
+            mTrucks.push_back(t);
+        }
+        return;
+    }
+}
+
+void CGAME::updateInfinite(float deltaTime) {
+    mPlayer.update(deltaTime);
+
+    // Di chuyển quái vật
+    for (auto t : mTrucks) {
+        t->Move(0, 1280);
+    }
+    for (auto c : mCars) {
+        c->Move(0, 1280);
+    }
+    for (auto d : mDinos) {
+        d->Move(0, 1280);
+    }
+    for (auto b : mBirds) {
+        b->Move(0, 1280);
+    }
+
+    float screenY = (float)mPlayer.getY() - mCameraY;
+    if (screenY < 200.0f) {
+        mCameraY = (float)mPlayer.getY() - 200.0f;
+    }
+
+    screenY = (float)mPlayer.getY() - mCameraY;
+    if (screenY > 600.0f) {
+        int newY = (int)(mCameraY + 600.0f);
+        int delta = newY - mPlayer.getY();
+        if (delta > 0) {
+            mPlayer.Down(newY);
+        }
+    }
+
+    int newLevel = 1 + (int)((-mCameraY) / (mLaneHeight * 6));
+    if (newLevel > mInfiniteLevel) {
+        mInfiniteLevel = newLevel;
+    }
+
+    while (!mLanes.empty() && mLanes.front().worldY > (int)mCameraY - mLaneHeight * 2) {
+        addLaneAbove();
+    }
+    pruneLanes();
+
+    auto pruneObstacles = [&](auto& vec) {
+        for (size_t i = 0; i < vec.size();) {
+            float y = (float)vec[i]->getY() - mCameraY;
+            if (y > 820.0f || y < -200.0f) {
+                delete vec[i];
+                vec.erase(vec.begin() + i);
+            } else {
+                ++i;
+            }
+        }
+    };
+
+    pruneObstacles(mTrucks);
+    pruneObstacles(mCars);
+    pruneObstacles(mDinos);
+    pruneObstacles(mBirds);
+
+    for (auto t : mTrucks) {
+        if (mPlayer.isImpact(t)) {
+            mPlayer.setDead(true);
+            mState = GameState::GAMEOVER;
+            return;
+        }
+    }
+    for (auto c : mCars) {
+        if (mPlayer.isImpact(c)) {
+            mPlayer.setDead(true);
+            mState = GameState::GAMEOVER;
+            return;
+        }
+    }
+    for (auto d : mDinos) {
+        if (mPlayer.isImpact(d)) {
+            d->Tell();
+            mPlayer.setDead(true);
+            mState = GameState::GAMEOVER;
+            return;
+        }
+    }
+    for (auto b : mBirds) {
+        if (mPlayer.isImpact(b)) {
+            b->Tell();
+            mPlayer.setDead(true);
+            mState = GameState::GAMEOVER;
+            return;
+        }
     }
 }
 

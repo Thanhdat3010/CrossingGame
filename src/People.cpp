@@ -120,16 +120,16 @@ void CPEOPLE::loadTextures(SDL_Renderer* renderer) {
     }
 }
 
-void CPEOPLE::draw(SDL_Renderer* renderer, CFont& font) {
+void CPEOPLE::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     if (isDead()) {
         // Vẽ chữ X đỏ rực rỡ báo tử
         SDL_Color deadColor = {214, 40, 40, 255};
-        font.drawText(renderer, "X", mX + 2, mY, 4, deadColor);
+        font.drawText(renderer, "X", mX + 2, (int)((float)mY - cameraY), 4, deadColor);
     } else {
         // Vẽ ô lưới Neon (SAO Hologram Grid Box) bao trọn nhân vật tại tọa độ Grid đích
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_SetRenderDrawColor(renderer, 80, 200, 255, 120); // Cyan trong suốt
-        SDL_FRect gridBox = { (float)mX, (float)mY, (float)mWidth, (float)mHeight };
+        SDL_FRect gridBox = { (float)mX, (float)mY - cameraY, (float)mWidth, (float)mHeight };
         SDL_RenderRect(renderer, &gridBox);
 
         // 1. Tính toán hiệu ứng co giãn (Squish & Stretch) + Nhảy (Hop) khi di chuyển trượt
@@ -160,7 +160,7 @@ void CPEOPLE::draw(SDL_Renderer* renderer, CFont& font) {
         float drawW = mWidth * scaleX;
         float drawH = mHeight * scaleY;
         float drawX = mDrawX + ((float)mWidth - drawW) / 2.0f;
-        float drawY = mDrawY + ((float)mHeight - drawH) + offsetY; // Cố định chân chạm đất khi co giãn
+        float drawY = mDrawY + ((float)mHeight - drawH) + offsetY - cameraY; // Cố định chân chạm đất khi co giãn
 
         // Vẽ Kirito hoặc Asuna tại tọa độ đã hoạt ảnh hóa
         if (mCharType == CharacterType::KIRITO) {

@@ -28,7 +28,7 @@ public:
     virtual void Tell() = 0;
 
     // Vẽ động vật với các hiệu ứng animation chuyển động
-    virtual void draw(SDL_Renderer* renderer, CFont& font) = 0;
+    virtual void draw(SDL_Renderer* renderer, CFont& font, float cameraY) = 0;
 
     // Getters phục vụ va chạm
     int getX() const { return mX; }
@@ -74,7 +74,7 @@ public:
 
     void Move(int limitX1, int limitX2) override;
     void Tell() override;
-    void draw(SDL_Renderer* renderer, CFont& font) override;
+    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
 };
 
 // ====================================================================
@@ -88,7 +88,7 @@ public:
 
     void Move(int limitX1, int limitX2) override;
     void Tell() override;
-    void draw(SDL_Renderer* renderer, CFont& font) override;
+    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
 };
 
 #endif // ANIMAL_H

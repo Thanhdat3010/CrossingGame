@@ -25,7 +25,7 @@ public:
     virtual void Move(int limitX1, int limitX2) = 0;
 
     // Hàm thuần ảo vẽ phương tiện lên renderer
-    virtual void draw(SDL_Renderer* renderer, CFont& font) = 0;
+    virtual void draw(SDL_Renderer* renderer, CFont& font, float cameraY) = 0;
 
     // Getters phục vụ logic va chạm và vẽ
     int getX() const { return mX; }
@@ -73,7 +73,7 @@ public:
     virtual ~CTRUCK();
 
     void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font) override;
+    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
 };
 
 // ====================================================================
@@ -86,7 +86,7 @@ public:
     virtual ~CCAR();
 
     void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font) override;
+    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
 };
 
 #endif // VEHICLE_H

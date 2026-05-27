@@ -36,7 +36,8 @@ void CTRUCK::Move(int limitX1, int limitX2) {
     }
 }
 
-void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
+void CTRUCK::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+    float baseY = (float)mY - cameraY;
     if (mTexture1) {
         // Đi bộ nặng nề: cứ mỗi 90px dịch chuyển đổi 1 frame đi bộ luân phiên (nhanh hơn theo phản hồi người dùng)
         int frameIndex = (std::abs(mX) / 90) % 2;
@@ -47,7 +48,7 @@ void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
         float drawW = (float)mWidth * 1.5f;
         float drawH = (float)mHeight * 1.5f;
         float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
-        float drawY = (float)mY - (drawH - (float)mHeight) / 2.0f;
+        float drawY = baseY - (drawH - (float)mHeight) / 2.0f;
 
         SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
@@ -70,14 +71,14 @@ void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
 
     if (mDirection == 1) {
         // Hướng sang phải: Thùng hàng bên trái, Cabin bên phải
-        cargoRect = { (float)mX, (float)mY + 4, 60.0f, 32.0f };
-        cabinRect = { (float)mX + 60, (float)mY + 12, 36.0f, 24.0f };
-        windowRect = { (float)mX + 75, (float)mY + 16, 12.0f, 10.0f };
+        cargoRect = { (float)mX, baseY + 4, 60.0f, 32.0f };
+        cabinRect = { (float)mX + 60, baseY + 12, 36.0f, 24.0f };
+        windowRect = { (float)mX + 75, baseY + 16, 12.0f, 10.0f };
     } else {
         // Hướng sang trái: Cabin bên trái, Thùng hàng bên phải
-        cabinRect = { (float)mX, (float)mY + 12, 36.0f, 24.0f };
-        cargoRect = { (float)mX + 36, (float)mY + 4, 60.0f, 32.0f };
-        windowRect = { (float)mX + 9, (float)mY + 16, 12.0f, 10.0f };
+        cabinRect = { (float)mX, baseY + 12, 36.0f, 24.0f };
+        cargoRect = { (float)mX + 36, baseY + 4, 60.0f, 32.0f };
+        windowRect = { (float)mX + 9, baseY + 16, 12.0f, 10.0f };
     }
     
     SDL_RenderFillRect(renderer, &cargoRect);
@@ -88,13 +89,13 @@ void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
     SDL_SetRenderDrawColor(renderer, 29, 53, 87, 255); // Bánh xe xanh đen đậm
     SDL_FRect wheel1, wheel2, wheel3;
     if (mDirection == 1) {
-        wheel1 = { (float)mX + 12, (float)mY + 34, 14.0f, 10.0f };
-        wheel2 = { (float)mX + 38, (float)mY + 34, 14.0f, 10.0f };
-        wheel3 = { (float)mX + 72, (float)mY + 34, 14.0f, 10.0f };
+        wheel1 = { (float)mX + 12, baseY + 34, 14.0f, 10.0f };
+        wheel2 = { (float)mX + 38, baseY + 34, 14.0f, 10.0f };
+        wheel3 = { (float)mX + 72, baseY + 34, 14.0f, 10.0f };
     } else {
-        wheel1 = { (float)mX + 10, (float)mY + 34, 14.0f, 10.0f };
-        wheel2 = { (float)mX + 44, (float)mY + 34, 14.0f, 10.0f };
-        wheel3 = { (float)mX + 70, (float)mY + 34, 14.0f, 10.0f };
+        wheel1 = { (float)mX + 10, baseY + 34, 14.0f, 10.0f };
+        wheel2 = { (float)mX + 44, baseY + 34, 14.0f, 10.0f };
+        wheel3 = { (float)mX + 70, baseY + 34, 14.0f, 10.0f };
     }
     SDL_RenderFillRect(renderer, &wheel1);
     SDL_RenderFillRect(renderer, &wheel2);
@@ -102,7 +103,7 @@ void CTRUCK::draw(SDL_Renderer* renderer, CFont& font) {
 
     // Vẽ chữ "TRUCK" nhỏ trên thùng hàng trang trí thêm
     SDL_Color textColor = {255, 255, 255, 255};
-    font.drawText(renderer, "TRUCK", mX + (mDirection == 1 ? 12 : 48), mY + 14, 1, textColor);
+    font.drawText(renderer, "TRUCK", mX + (mDirection == 1 ? 12 : 48), (int)(baseY + 14), 1, textColor);
 }
 
 
@@ -128,7 +129,8 @@ void CCAR::Move(int limitX1, int limitX2) {
     }
 }
 
-void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
+void CCAR::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+    float baseY = (float)mY - cameraY;
     if (mTexture1) {
         // Thú húc siêu tốc: cứ mỗi 150px dịch chuyển đổi 1 frame chạy luân phiên (chậm lại để thấy bước sải chân)
         int frameIndex = (std::abs(mX) / 150) % 2;
@@ -139,7 +141,7 @@ void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
         float drawW = (float)mWidth * 1.4f;
         float drawH = (float)mHeight * 1.4f;
         float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
-        float drawY = (float)mY - (drawH - (float)mHeight) / 2.0f;
+        float drawY = baseY - (drawH - (float)mHeight) / 2.0f;
 
         SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
         SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
@@ -150,16 +152,16 @@ void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
     // Vẽ xe thể thao thon gọn, khí động học
     // Thân xe dưới (Cam san hô rực rỡ / Orange Neon)
     SDL_SetRenderDrawColor(renderer, 247, 127, 0, 255);
-    SDL_FRect bodyRect = { (float)mX, (float)mY + 12, 72.0f, 16.0f };
+    SDL_FRect bodyRect = { (float)mX, baseY + 12, 72.0f, 16.0f };
     SDL_RenderFillRect(renderer, &bodyRect);
 
     // Cabin mui xe (Vàng tươi mượt mà)
     SDL_SetRenderDrawColor(renderer, 252, 191, 73, 255);
     SDL_FRect roofRect;
     if (mDirection == 1) {
-        roofRect = { (float)mX + 16, (float)mY + 2, 36.0f, 10.0f };
+        roofRect = { (float)mX + 16, baseY + 2, 36.0f, 10.0f };
     } else {
-        roofRect = { (float)mX + 20, (float)mY + 2, 36.0f, 10.0f };
+        roofRect = { (float)mX + 20, baseY + 2, 36.0f, 10.0f };
     }
     SDL_RenderFillRect(renderer, &roofRect);
 
@@ -167,16 +169,16 @@ void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_FRect windowRect;
     if (mDirection == 1) {
-        windowRect = { (float)mX + 32, (float)mY + 4, 16.0f, 6.0f };
+        windowRect = { (float)mX + 32, baseY + 4, 16.0f, 6.0f };
     } else {
-        windowRect = { (float)mX + 24, (float)mY + 4, 16.0f, 6.0f };
+        windowRect = { (float)mX + 24, baseY + 4, 16.0f, 6.0f };
     }
     SDL_RenderFillRect(renderer, &windowRect);
 
     // 2 Bánh xe thăng bằng
     SDL_SetRenderDrawColor(renderer, 0, 48, 73, 255);
-    SDL_FRect w1 = { (float)mX + 10, (float)mY + 24, 12.0f, 8.0f };
-    SDL_FRect w2 = { (float)mX + 50, (float)mY + 24, 12.0f, 8.0f };
+    SDL_FRect w1 = { (float)mX + 10, baseY + 24, 12.0f, 8.0f };
+    SDL_FRect w2 = { (float)mX + 50, baseY + 24, 12.0f, 8.0f };
     SDL_RenderFillRect(renderer, &w1);
     SDL_RenderFillRect(renderer, &w2);
 
@@ -184,13 +186,13 @@ void CCAR::draw(SDL_Renderer* renderer, CFont& font) {
     SDL_SetRenderDrawColor(renderer, 255, 235, 41, 200);
     SDL_FRect headlight;
     if (mDirection == 1) {
-        headlight = { (float)mX + 70, (float)mY + 16, 4.0f, 6.0f };
+        headlight = { (float)mX + 70, baseY + 16, 4.0f, 6.0f };
     } else {
-        headlight = { (float)mX - 2, (float)mY + 16, 4.0f, 6.0f };
+        headlight = { (float)mX - 2, baseY + 16, 4.0f, 6.0f };
     }
     SDL_RenderFillRect(renderer, &headlight);
 
     // Vẽ chữ "CAR" siêu nhỏ trên cửa xe
     SDL_Color textCol = {0, 0, 0, 255};
-    font.drawText(renderer, "CAR", mX + 26, mY + 16, 1, textCol);
+    font.drawText(renderer, "CAR", mX + 26, (int)(baseY + 16), 1, textCol);
 }

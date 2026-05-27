@@ -17,6 +17,19 @@ enum class GameState {
     GAMEOVER
 };
 
+enum class LaneType {
+    ROAD_CAR,
+    FOREST_DINO,
+    REST,
+    FOREST_TRUCK,
+    ROAD_BIRD
+};
+
+struct Lane {
+    LaneType type;
+    int worldY;
+};
+
 class CGAME {
 private:
     SDL_Window* mWindow;
@@ -60,6 +73,13 @@ private:
     int mStage;
     bool mIsInfinityMode; // Cờ hiệu chế độ Vô Tận (Infinity Mode)
 
+    // Camera cho chế độ Infinite
+    float mCameraY;
+    int mLaneHeight;
+    int mInfiniteLevel;
+    int mLanePatternIndex;
+    std::vector<Lane> mLanes;
+
     // Trạng thái quản lý Menu
     int mSelectedMenuOption; // 0: New Game, 1: Load Game, 2: Settings
     int mSelectedCharOption; // 0: Kirito, 1: Asuna
@@ -82,6 +102,16 @@ private:
 
     // Hàm dọn dẹp các chướng ngại vật
     void clearObstacles();
+
+    // Tutorial / Infinite helpers
+    void resetTutorial();
+    void resetInfinite();
+    void initInfiniteLanes();
+    void addLaneAbove();
+    void pruneLanes();
+    void spawnObstaclesForLane(const Lane& lane);
+    void updateInfinite(float deltaTime);
+    int randomRange(int minValue, int maxValue) const;
 
 public:
     CGAME();

@@ -53,7 +53,7 @@ public:
     void Right(int limitX);
 
     // Vẽ nhân vật lên màn hình (sử dụng ký tự 'Y' pixel-art chuẩn đề bài)
-    void draw(SDL_Renderer* renderer, CFont& font);
+    void draw(SDL_Renderer* renderer, CFont& font, float cameraY);
 
     // Kiểm tra trạng thái
     bool isDead() const { return !mState; }
