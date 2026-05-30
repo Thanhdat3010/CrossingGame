@@ -18,15 +18,8 @@ if (!$cmakeExe -or !$msbuildExe) {
 Write-Host "[INFO] Found CMake: $cmakeExe" -ForegroundColor Cyan
 Write-Host "[INFO] Found MSBuild: $msbuildExe" -ForegroundColor Cyan
 
-if (!(Test-Path "build")) {
-    New-Item -ItemType Directory -Path "build" | Out-Null
-}
-
-Write-Host "[INFO] Configuring project..." -ForegroundColor Cyan
-& $cmakeExe -B build -S .
-
 Write-Host "[INFO] Compiling source code..." -ForegroundColor Cyan
-& $msbuildExe "build\CrossingGame.sln" /p:Configuration=Debug /v:minimal
+& $msbuildExe "CrossingGame.sln" /p:Configuration=Debug /v:minimal
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Compile failed!" -ForegroundColor Red
