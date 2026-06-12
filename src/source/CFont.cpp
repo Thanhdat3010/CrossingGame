@@ -1,8 +1,6 @@
-#include "Font.h"
+#include "CFont.h"
 #include <iostream>
 
-// Dữ liệu nhị phân 8x8 pixel cho các ký tự từ ASCII 32 (Khoảng trắng) đến ASCII 95 (_)
-// Mỗi dòng của ký tự biểu diễn bằng 1 byte (8 bits), 1 là tô màu, 0 là trong suốt.
 static const unsigned char font_data[64][8] = {
     // 32: [Khoảng trắng]
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
@@ -156,44 +154,32 @@ void CFont::free() {
 }
 
 void CFont::createFontTexture(SDL_Renderer* renderer) {
-    // Chúng ta có 64 ký tự xếp thành 1 hàng ngang. Mỗi ký tự rộng 8px, cao 8px.
-    // Tổng chiều rộng texture = 64 * 8 = 512px, chiều cao = 8px.
     int texWidth = 64 * mCharWidth;
     int texHeight = mCharHeight;
 
-    // Tạo một Surface 32-bit RGBA tạm thời để vẽ các ký tự pixel
     SDL_Surface* surface = SDL_CreateSurface(texWidth, texHeight, SDL_PIXELFORMAT_RGBA32);
     if (!surface) {
         std::cerr << "CreateSurface Error in CFont: " << SDL_GetError() << std::endl;
         return;
     }
 
-    // Đổ nền trong suốt (RGBA = 0, 0, 0, 0)
     SDL_ClearSurface(surface, 0.0f, 0.0f, 0.0f, 0.0f);
-
     Uint32* pixels = (Uint32*)surface->pixels;
 
-    // Duyệt qua từng ký tự trong bảng dữ liệu font_data
     for (int charIdx = 0; charIdx < 64; ++charIdx) {
         for (int row = 0; row < 8; ++row) {
             unsigned char rowByte = font_data[charIdx][row];
             for (int col = 0; col < 8; ++col) {
-                // Đọc bit thứ col từ trái sang (MSB to LSB)
                 bool isPixelActive = (rowByte & (0x80 >> col)) != 0;
-
                 if (isPixelActive) {
-                    // Nếu bit là 1, ta tô màu TRẮNG cho pixel đó.
-                    // Tọa độ x thực tế trên Surface = charIdx * 8 + col
-                    // Tọa độ y thực tế = row
                     int x = charIdx * mCharWidth + col;
                     int y = row;
-                    pixels[y * texWidth + x] = 0xFFFFFFFF; // Màu trắng (RGBA = 255, 255, 255, 255)
+                    pixels[y * texWidth + x] = 0xFFFFFFFF;
                 }
             }
         }
     }
 
-    // Chuyển Surface thành Texture để vẽ nhanh bằng card đồ họa GPU
     mFontTexture = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_DestroySurface(surface);
 
@@ -205,55 +191,39 @@ void CFont::createFontTexture(SDL_Renderer* renderer) {
 void CFont::drawText(SDL_Renderer* renderer, const std::string& text, int x, int y, int scale, SDL_Color color) {
     if (!mFontTexture) return;
 
-    // Áp dụng bộ lọc màu (Color Mod) để vẽ chữ với bất kỳ màu nào tùy ý
     SDL_SetTextureColorMod(mFontTexture, color.r, color.g, color.b);
     SDL_SetTextureAlphaMod(mFontTexture, color.a);
 
     int curX = x;
 
     for (char c : text) {
-        // Chuyển ký tự sang chữ hoa
         char upperC = toupper(c);
-
-        // Chỉ hỗ trợ các ký tự trong khoảng từ ' ' (ASCII 32) đến '_' (ASCII 95)
         if (upperC < 32 || upperC > 95) {
-            // Nếu ngoài vùng hỗ trợ, ta vẽ khoảng trắng (charIdx = 0)
             curX += mCharWidth * scale;
             continue;
         }
 
-        // Chỉ số của ký tự trong mảng font_data của chúng ta
         int charIdx = upperC - 32;
 
-        // Vùng cắt nguồn từ Texture font (Source Rect)
         SDL_FRect srcRect;
         srcRect.x = (float)(charIdx * mCharWidth);
         srcRect.y = 0.0f;
         srcRect.w = (float)mCharWidth;
         srcRect.h = (float)mCharHeight;
 
-        // Vùng đích vẽ lên màn hình (Destination Rect)
         SDL_FRect dstRect;
         dstRect.x = (float)curX;
         dstRect.y = (float)y;
         dstRect.w = (float)(mCharWidth * scale);
         dstRect.h = (float)(mCharHeight * scale);
 
-        // Hàm vẽ Texture chuẩn của SDL3
         SDL_RenderTexture(renderer, mFontTexture, &srcRect, &dstRect);
-
-        // Dịch chuyển tọa độ x cho ký tự kế tiếp (có khoảng cách nhỏ giữa các ký tự)
         curX += (mCharWidth + 1) * scale;
     }
 }
 
 void CFont::drawTextCentered(SDL_Renderer* renderer, const std::string& text, int y, int scale, SDL_Color color) {
-    // Mỗi ký tự rộng mCharWidth pixel, cộng thêm 1 pixel khoảng cách
-    // Ký tự cuối cùng không cần khoảng cách thừa ở sau nên trừ đi 1 khoảng cách (scale)
     int totalWidth = (int)text.length() * (mCharWidth + 1) * scale - scale;
-    
-    // Căn giữa theo chiều ngang của màn hình 1280px
     int x = (1280 - totalWidth) / 2;
-    
     drawText(renderer, text, x, y, scale, color);
 }

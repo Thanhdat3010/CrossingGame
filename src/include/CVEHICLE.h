@@ -1,8 +1,8 @@
-#ifndef VEHICLE_H
-#define VEHICLE_H
+#ifndef CVEHICLE_H
+#define CVEHICLE_H
 
 #include <SDL3/SDL.h>
-#include "Font.h"
+#include "CFont.h"
 
 class CVEHICLE {
 protected:
@@ -49,18 +49,4 @@ public:
     }
 };
 
-class CBLUEWING : public CVEHICLE {
-public:
-    CBLUEWING(int x, int y, int speed, int direction);
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-class CSKYARMOR : public CVEHICLE {
-public:
-    CSKYARMOR(int x, int y, int speed, int direction);
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-#endif // VEHICLE_H
+#endif // CVEHICLE_H

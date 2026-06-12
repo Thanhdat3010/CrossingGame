@@ -1,4 +1,4 @@
-#include "Game.h"
+#include "CGAME.h"
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <iostream>
@@ -420,22 +420,8 @@ void CGAME::render() {
     SDL_RenderPresent(mRenderer);
 }
 
-// ====================================================================
-// RENDER MENU — Giao diện Menu phong cách Anime SAO (vẽ 100% bằng code)
-// ====================================================================
-// Flow chi tiết:
-//   1. Vẽ nền gradient (xanh đậm → đen) bằng nhiều dải rect mỏng xếp chồng
-//   2. Vẽ các ngôi sao nhỏ nhấp nháy theo sin(time) → tạo cảm giác "sống"
-//   3. Vẽ 2 thanh kiếm chéo nhau (pixel art) ở giữa → icon Crossing Game
-//   4. Vẽ khung panel viền sáng phía dưới → chứa menu options
-//   5. Vẽ tiêu đề + phụ đề phía trên panel
-//   6. Vẽ menu items với hiệu ứng highlight khi được chọn
-//   7. Vẽ hướng dẫn / cảnh báo ở cuối
-// ====================================================================
 void CGAME::renderMenu() {
     // ─── 1. NỀN GRADIENT (Deep Navy → Black) ───────────────────────
-    // Vẽ từng dải ngang 4px, mỗi dải giảm dần độ sáng từ trên xuống dưới
-    // Tạo hiệu ứng gradient mượt mà giống bầu trời đêm anime
     for (int y = 0; y < 720; y += 4) {
         float ratio = (float)y / 720.0f; // 0.0 (trên) → 1.0 (dưới)
         // Pha trộn từ Navy Blue (20,24,82) đến Midnight Black (5,5,15)
@@ -448,8 +434,6 @@ void CGAME::renderMenu() {
     }
 
     // ─── 2. NGÔI SAO NHẤP NHÁY ─────────────────────────────────────
-    // Mỗi ngôi sao là 1 pixel nhỏ, sáng/tối theo sin(time + offset)
-    // offset khác nhau cho mỗi sao → nhấp nháy lệch pha rất tự nhiên
     struct Star { float x, y, speed; };
     Star stars[] = {
         {100, 50, 1.0f},  {300, 80, 1.5f},  {500, 30, 2.0f},
@@ -460,81 +444,63 @@ void CGAME::renderMenu() {
         {50, 200, 2.0f},  {1200, 70, 1.6f}, {640, 45, 1.9f},
     };
     for (auto& s : stars) {
-        // sin() trả về -1..1, đổi sang 0..255 để làm độ sáng alpha
         float brightness = (sinf(mMenuAnimTimer * s.speed * 3.14f) + 1.0f) / 2.0f;
         Uint8 alpha = (Uint8)(100 + brightness * 155); // Sáng tối từ 100-255
         SDL_SetRenderDrawColor(mRenderer, 200, 220, 255, alpha);
-        // Vẽ ngôi sao 2x2 pixel (nhỏ xinh)
         SDL_FRect star = { s.x, s.y, 2.0f, 2.0f };
         SDL_RenderFillRect(mRenderer, &star);
     }
 
     // ─── 3. THANH KIẾM CHÉO (Pixel Art Icon) ───────────────────────
-    // Ý nghĩa: 2 thanh kiếm chéo nhau tượng trưng cho "crossing" (băng qua)
-    // Đồng thời là biểu tượng đặc trưng của Sword Art Online!
     int swordCenterX = 640; // Tâm X của cặp kiếm
     int swordCenterY = 240; // Tâm Y
 
     if (mSwordTexture) {
-        // Vẽ texture từ ảnh swords.png của người dùng
-        float w = 256.0f; // Kích thước chiều ngang hiển thị phù hợp
-        float h = 256.0f; // Kích thước chiều cao hiển thị phù hợp
+        float w = 256.0f;
+        float h = 256.0f;
         SDL_FRect dstRect = { (float)swordCenterX - w / 2.0f, (float)swordCenterY - h / 2.0f, w, h };
         SDL_RenderTexture(mRenderer, mSwordTexture, NULL, &dstRect);
     } else {
-        // Dự phòng: Vẽ kiếm bằng code nếu không load được file ảnh
-        int swordLen = 80;      // Nửa chiều dài thanh kiếm
-
-        // Thanh kiếm 1 — màu Cyan sáng (kiếm Elucidator style)
+        int swordLen = 80;
         SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
         for (int i = -swordLen; i <= swordLen; i++) {
-            // Vẽ pixel dọc theo đường chéo, dày 3px cho rõ
             SDL_FRect px = { (float)(swordCenterX + i - 1), (float)(swordCenterY + i - 1), 3.0f, 3.0f };
             SDL_RenderFillRect(mRenderer, &px);
         }
-        // Chuôi kiếm 1 (hình vuông nhỏ ở góc trên-trái)
         SDL_FRect hilt1 = { (float)(swordCenterX - swordLen - 5), (float)(swordCenterY - swordLen - 5), 12.0f, 12.0f };
-        SDL_SetRenderDrawColor(mRenderer, 255, 215, 0, 255); // Vàng Gold
+        SDL_SetRenderDrawColor(mRenderer, 255, 215, 0, 255);
         SDL_RenderFillRect(mRenderer, &hilt1);
 
-        // Thanh kiếm 2 — màu Rose sáng (kiếm Lambent Light style)
         SDL_SetRenderDrawColor(mRenderer, 255, 130, 170, 255);
         for (int i = -swordLen; i <= swordLen; i++) {
             SDL_FRect px = { (float)(swordCenterX - i - 1), (float)(swordCenterY + i - 1), 3.0f, 3.0f };
             SDL_RenderFillRect(mRenderer, &px);
         }
-        // Chuôi kiếm 2 (góc trên-phải)
         SDL_FRect hilt2 = { (float)(swordCenterX + swordLen - 5), (float)(swordCenterY - swordLen - 5), 12.0f, 12.0f };
         SDL_SetRenderDrawColor(mRenderer, 255, 215, 0, 255);
         SDL_RenderFillRect(mRenderer, &hilt2);
     }
 
-    // Hiệu ứng phát sáng (glow) ở giao điểm 2 kiếm
-    float glowPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f; // 0..1 nhấp nháy
+    float glowPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
     Uint8 glowAlpha = (Uint8)(80 + glowPulse * 120);
     SDL_SetRenderDrawColor(mRenderer, 255, 255, 200, glowAlpha);
     SDL_FRect glow = { (float)(swordCenterX - 6), (float)(swordCenterY - 6), 12.0f, 12.0f };
     SDL_RenderFillRect(mRenderer, &glow);
 
     // ─── 4. TIÊU ĐỀ GAME ──────────────────────────────────────────
-    // Chữ trắng sáng + phụ đề cyan nhạt, căn giữa phía trên panel
-    SDL_Color titleColor = {255, 255, 255, 255};    // Trắng tinh khiết
-    SDL_Color subtitleColor = {100, 200, 255, 255};  // Cyan nhạt SAO-style
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {100, 200, 255, 255};
     mFont.drawTextCentered(mRenderer, "CROSSING GAME", 350, 5, titleColor);
     mFont.drawTextCentered(mRenderer, "~ SWORD ART ONLINE EDITION ~", 400, 2, subtitleColor);
 
     // ─── 5. KHUNG PANEL MENU ───────────────────────────────────────
-    // Vẽ một khung chữ nhật bán trong suốt → chứa các menu options bên trong
-    // Tạo cảm giác "UI panel" trôi nổi như trong game SAO
     float panelX = 340.0f, panelY = 430.0f;
     float panelW = 600.0f, panelH = 230.0f;
 
-    // Nền panel (xanh đậm bán trong suốt)
     SDL_SetRenderDrawColor(mRenderer, 10, 15, 40, 180);
     SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
     SDL_RenderFillRect(mRenderer, &panelBg);
 
-    // Viền panel 4 cạnh — Cyan sáng (tạo hiệu ứng hologram UI)
     SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
     SDL_FRect borderTop    = { panelX, panelY, panelW, 2.0f };
     SDL_FRect borderBottom = { panelX, panelY + panelH - 2, panelW, 2.0f };
@@ -545,9 +511,8 @@ void CGAME::renderMenu() {
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    // Góc trang trí (4 hình vuông nhỏ sáng ở 4 góc panel)
     SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
-    float cs = 6.0f; // Corner square size
+    float cs = 6.0f;
     SDL_FRect c1 = { panelX - 2, panelY - 2, cs, cs };
     SDL_FRect c2 = { panelX + panelW - cs + 2, panelY - 2, cs, cs };
     SDL_FRect c3 = { panelX - 2, panelY + panelH - cs + 2, cs, cs };
@@ -558,11 +523,8 @@ void CGAME::renderMenu() {
     SDL_RenderFillRect(mRenderer, &c4);
 
     // ─── 6. MENU OPTIONS ───────────────────────────────────────────
-    // 3 lựa chọn: NEW GAME / LOAD GAME / SETTINGS
-    // Option được chọn có: highlight bar sáng + chữ vàng gold + chỉ thị ">"
-    // Option thường: chữ xám nhạt
-    SDL_Color normalColor  = {150, 160, 180, 255}; // Xám xanh nhạt
-    SDL_Color selectColor  = {255, 215, 0, 255};   // Vàng Gold SAO-style
+    SDL_Color normalColor  = {150, 160, 180, 255};
+    SDL_Color selectColor  = {255, 215, 0, 255};
 
     std::string menuOptions[3] = {
         "NEW GAME",
@@ -574,17 +536,14 @@ void CGAME::renderMenu() {
         int yPos = 455 + i * 60;
 
         if (mSelectedMenuOption == i) {
-            // Vẽ thanh highlight phía sau option được chọn
             SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 40);
             SDL_FRect highlight = { panelX + 10, (float)yPos - 5, panelW - 20, 40.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
-            // Viền trái highlight (vạch sáng 3px)
             SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
             SDL_FRect hlBorder = { panelX + 10, (float)yPos - 5, 3.0f, 40.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
-            // Ký tự chỉ hướng ">" nhấp nháy theo sin(time)
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 5.0f;
             mFont.drawText(mRenderer, ">", (int)(panelX + 30 + arrowOffset), yPos + 4, 3, selectColor);
             mFont.drawText(mRenderer, menuOptions[i], (int)(panelX + 70), yPos + 4, 3, selectColor);
@@ -595,7 +554,7 @@ void CGAME::renderMenu() {
 
     // ─── 7. HƯỚNG DẪN / CẢNH BÁO ──────────────────────────────────
     if (mShowMenuWarning) {
-        SDL_Color warnColor = {255, 80, 80, 255}; // Đỏ sáng
+        SDL_Color warnColor = {255, 80, 80, 255};
         mFont.drawTextCentered(mRenderer, "NOT SUPPORTED YET!", 680, 2, warnColor);
     } else {
         SDL_Color guideColor = {80, 100, 120, 255};
@@ -603,11 +562,7 @@ void CGAME::renderMenu() {
     }
 }
 
-// ====================================================================
-// RENDER CHAR SELECT — Giao diện Chọn Nhân Vật 2 Cột SAO-style
-// ====================================================================
 void CGAME::renderCharSelect() {
-    // ─── 1. NỀN GRADIENT & SAO NHẤP NHÁY ───────────────────────────
     for (int y = 0; y < 720; y += 4) {
         float ratio = (float)y / 720.0f;
         Uint8 r = (Uint8)(20 - ratio * 15);
@@ -617,7 +572,6 @@ void CGAME::renderCharSelect() {
         SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
         SDL_RenderFillRect(mRenderer, &strip);
     }
-    // Ngôi sao nhấp nháy
     struct Star { float x, y, speed; };
     Star stars[] = {
         {100, 50, 1.0f}, {300, 80, 1.5f}, {500, 30, 2.0f}, {700, 90, 0.8f}, {900, 60, 1.2f},
@@ -631,21 +585,18 @@ void CGAME::renderCharSelect() {
         SDL_RenderFillRect(mRenderer, &star);
     }
 
-    // ─── 2. TIÊU ĐỀ ────────────────────────────────────────────────
     SDL_Color whiteColor = {255, 255, 255, 255};
     SDL_Color cyanColor = {80, 200, 255, 255};
     SDL_Color roseColor = {255, 130, 170, 255};
     mFont.drawTextCentered(mRenderer, "SELECT YOUR HERO", 70, 4, whiteColor);
     mFont.drawTextCentered(mRenderer, "SWORD ART ONLINE CHARACTER SELECTION", 120, 2, cyanColor);
 
-    // Lambda helper vẽ chữ căn giữa bên trong một panel cụ thể (tránh lỗi đè chữ)
     auto drawTextCenteredInBox = [&](const std::string& text, float boxX, float boxW, float y, int scale, SDL_Color color) {
-        int textWidth = (int)text.length() * (8 + 1) * scale - scale; // mCharWidth = 8
+        int textWidth = (int)text.length() * (8 + 1) * scale - scale;
         int targetX = (int)boxX + ((int)boxW - textWidth) / 2;
         mFont.drawText(mRenderer, text, targetX, (int)y, scale, color);
     };
 
-    // ─── 3. NETFLIX-STYLE SLIDING PANELS (Trượt Ngang Căn Giữa) ──────
     SDL_Color labelColor = {180, 200, 220, 255};
     SDL_Color valColor = {255, 255, 255, 255};
     bool kSelected = (mSelectedCharOption == 0);
@@ -653,17 +604,13 @@ void CGAME::renderCharSelect() {
     SDL_Texture* kTex = mPlayer.getKiritoTexture();
     SDL_Texture* aTex = mPlayer.getAsunaTexture();
 
-    // ─── CARD 1: KIRITO ──────────────────────────────────────────
+    // KIRITO
     if (kSelected) {
-        // KIRITO ĐANG ĐƯỢC CHỌN -> HIỂN THỊ CĂN GIỮA (LỚN, RỰC RỠ)
         float cX = 465.0f, cY = 170.0f, cW = 350.0f, cH = 420.0f;
-
-        // Nền xanh đậm
         SDL_SetRenderDrawColor(mRenderer, 10, 25, 45, 220);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        // Viền sáng Neon Cyan phát sáng nhấp nháy theo sin wave
         float borderPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
         Uint8 borderAlpha = (Uint8)(180 + borderPulse * 75);
         SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, borderAlpha);
@@ -676,7 +623,6 @@ void CGAME::renderCharSelect() {
         SDL_RenderFillRect(mRenderer, &b3);
         SDL_RenderFillRect(mRenderer, &b4);
 
-        // Avatar Kirito (Vẽ ảnh PNG nếu có, ngược lại vẽ chữ K pixel lớn)
         if (kTex) {
             SDL_FRect dstRect = { cX + (cW - 120.0f) / 2.0f, cY + 30.0f, 120.0f, 120.0f };
             SDL_RenderTexture(mRenderer, kTex, NULL, &dstRect);
@@ -685,23 +631,17 @@ void CGAME::renderCharSelect() {
         }
         
         drawTextCenteredInBox("KIRITO", cX, cW, cY + 160, 3, cyanColor);
-
-        // Khung chỉ số RPG đầy đủ bên dưới (căn giữa trong box)
         drawTextCenteredInBox("HP    : [========] 200/200", cX, cW, cY + 220, 1, labelColor);
         drawTextCenteredInBox("SPEED : 20 (DASH SPEED)", cX, cW, cY + 255, 1, valColor);
         drawTextCenteredInBox("WEAPON: ELUCIDATOR", cX, cW, cY + 290, 1, valColor);
         drawTextCenteredInBox("CLASS : DUAL WIELDER", cX, cW, cY + 325, 1, valColor);
         drawTextCenteredInBox(">> ACTIVE HERO <<", cX, cW, cY + 370, 2, cyanColor);
     } else {
-        // KIRITO KHÔNG ĐƯỢC CHỌN -> BỊ ĐẨY SANG TRÁI (NHỎ, MỜ NHẠT)
         float cX = 160.0f, cY = 230.0f, cW = 220.0f, cH = 300.0f;
-
-        // Nền mờ tối
         SDL_SetRenderDrawColor(mRenderer, 10, 15, 25, 120);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        // Viền xanh xám mờ
         SDL_SetRenderDrawColor(mRenderer, 50, 70, 90, 100);
         SDL_FRect b1 = { cX, cY, cW, 2.0f };
         SDL_FRect b2 = { cX, cY + cH - 2, cW, 2.0f };
@@ -712,7 +652,6 @@ void CGAME::renderCharSelect() {
         SDL_RenderFillRect(mRenderer, &b3);
         SDL_RenderFillRect(mRenderer, &b4);
 
-        // Avatar Kirito mờ nhạt (Alpha 120)
         if (kTex) {
             SDL_FRect dstRect = { cX + (cW - 80.0f) / 2.0f, cY + 25.0f, 80.0f, 80.0f };
             SDL_SetTextureAlphaMod(kTex, 120);
@@ -726,17 +665,13 @@ void CGAME::renderCharSelect() {
         drawTextCenteredInBox("[ PRESS A ]", cX, cW, cY + 220, 1, SDL_Color{80, 100, 120, 100});
     }
 
-    // ─── CARD 2: ASUNA ───────────────────────────────────────────
+    // ASUNA
     if (!kSelected) {
-        // ASUNA ĐANG ĐƯỢC CHỌN -> HIỂN THỊ CĂN GIỮA (LỚN, RỰC RỠ)
         float cX = 465.0f, cY = 170.0f, cW = 350.0f, cH = 420.0f;
-
-        // Nền hồng đậm
         SDL_SetRenderDrawColor(mRenderer, 45, 15, 25, 220);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        // Viền sáng Neon Rose phát sáng nhấp nháy theo sin wave
         float borderPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
         Uint8 borderAlpha = (Uint8)(180 + borderPulse * 75);
         SDL_SetRenderDrawColor(mRenderer, 255, 130, 170, borderAlpha);
@@ -749,7 +684,6 @@ void CGAME::renderCharSelect() {
         SDL_RenderFillRect(mRenderer, &b3);
         SDL_RenderFillRect(mRenderer, &b4);
 
-        // Avatar Asuna (Vẽ ảnh PNG nếu có, ngược lại vẽ chữ A pixel lớn)
         if (aTex) {
             SDL_FRect dstRect = { cX + (cW - 120.0f) / 2.0f, cY + 30.0f, 120.0f, 120.0f };
             SDL_RenderTexture(mRenderer, aTex, NULL, &dstRect);
@@ -758,23 +692,17 @@ void CGAME::renderCharSelect() {
         }
 
         drawTextCenteredInBox("ASUNA", cX, cW, cY + 160, 3, roseColor);
-
-        // Khung chỉ số RPG đầy đủ bên dưới
         drawTextCenteredInBox("HP    : [====]     100/100", cX, cW, cY + 220, 1, labelColor);
         drawTextCenteredInBox("SPEED : 16 (STANDARD)", cX, cW, cY + 255, 1, valColor);
         drawTextCenteredInBox("WEAPON: LAMBENT LIGHT", cX, cW, cY + 290, 1, valColor);
         drawTextCenteredInBox("CLASS : FLASH RAPIER", cX, cW, cY + 325, 1, valColor);
         drawTextCenteredInBox(">> ACTIVE HERO <<", cX, cW, cY + 370, 2, roseColor);
     } else {
-        // ASUNA KHÔNG ĐƯỢC CHỌN -> BỊ ĐẨY SANG PHẢI (NHỎ, MỜ NHẠT)
         float cX = 900.0f, cY = 230.0f, cW = 220.0f, cH = 300.0f;
-
-        // Nền mờ tối
         SDL_SetRenderDrawColor(mRenderer, 25, 10, 15, 120);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        // Viền hồng xám mờ
         SDL_SetRenderDrawColor(mRenderer, 90, 60, 70, 100);
         SDL_FRect b1 = { cX, cY, cW, 2.0f };
         SDL_FRect b2 = { cX, cY + cH - 2, cW, 2.0f };
@@ -785,7 +713,6 @@ void CGAME::renderCharSelect() {
         SDL_RenderFillRect(mRenderer, &b3);
         SDL_RenderFillRect(mRenderer, &b4);
 
-        // Avatar Asuna mờ nhạt (Alpha 120)
         if (aTex) {
             SDL_FRect dstRect = { cX + (cW - 80.0f) / 2.0f, cY + 25.0f, 80.0f, 80.0f };
             SDL_SetTextureAlphaMod(aTex, 120);
@@ -799,16 +726,11 @@ void CGAME::renderCharSelect() {
         drawTextCenteredInBox("[ PRESS D ]", cX, cW, cY + 220, 1, SDL_Color{120, 80, 100, 100});
     }
 
-    // ─── 4. HƯỚNG DẪN Ở ĐÁY ────────────────────────────────────────
     SDL_Color guideColor = {120, 140, 160, 255};
     mFont.drawTextCentered(mRenderer, "USE 'A'/'D' OR 'LEFT'/'RIGHT' TO SELECT  -  PRESS 'ENTER' TO CHOOSE", 640, 1, guideColor);
 }
 
-// ====================================================================
-// RENDER STAGE SELECT — Giao diện Chọn Màn Chơi SAO-style (Dọc)
-// ====================================================================
 void CGAME::renderStageSelect() {
-    // ─── 1. NỀN GRADIENT & SAO NHẤP NHÁY ───────────────────────────
     for (int y = 0; y < 720; y += 4) {
         float ratio = (float)y / 720.0f;
         Uint8 r = (Uint8)(20 - ratio * 15);
@@ -818,7 +740,6 @@ void CGAME::renderStageSelect() {
         SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
         SDL_RenderFillRect(mRenderer, &strip);
     }
-    // Ngôi sao nhấp nháy
     struct Star { float x, y, speed; };
     Star stars[] = {
         {100, 50, 1.0f}, {300, 80, 1.5f}, {500, 30, 2.0f}, {700, 90, 0.8f}, {900, 60, 1.2f},
@@ -832,22 +753,18 @@ void CGAME::renderStageSelect() {
         SDL_RenderFillRect(mRenderer, &star);
     }
 
-    // ─── 2. TIÊU ĐỀ ────────────────────────────────────────────────
     SDL_Color whiteColor = {255, 255, 255, 255};
     SDL_Color cyanColor = {80, 200, 255, 255};
     mFont.drawTextCentered(mRenderer, "SELECT CHALLENGE LEVEL", 100, 4, whiteColor);
     mFont.drawTextCentered(mRenderer, "CHOOSE THE QUEST DIFFICULTY", 150, 2, cyanColor);
 
-    // ─── 3. KHUNG PANEL CHỌN STAGE (Dọc) ──────────────────────────
     float panelX = 240.0f, panelY = 220.0f;
     float panelW = 800.0f, panelH = 380.0f;
 
-    // Nền panel
     SDL_SetRenderDrawColor(mRenderer, 10, 15, 30, 180);
     SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
     SDL_RenderFillRect(mRenderer, &panelBg);
 
-    // Viền panel hologram
     SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
     SDL_FRect borderTop    = { panelX, panelY, panelW, 2.0f };
     SDL_FRect borderBottom = { panelX, panelY + panelH - 2, panelW, 2.0f };
@@ -858,7 +775,6 @@ void CGAME::renderStageSelect() {
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    // Góc trang trí
     float cs = 6.0f;
     SDL_FRect c1 = { panelX - 2, panelY - 2, cs, cs };
     SDL_FRect c2 = { panelX + panelW - cs + 2, panelY - 2, cs, cs };
@@ -869,7 +785,6 @@ void CGAME::renderStageSelect() {
     SDL_RenderFillRect(mRenderer, &c3);
     SDL_RenderFillRect(mRenderer, &c4);
 
-    // ─── 4. CÁC TÙY CHỌN MÀN CHƠI ─────────────────────────────────
     std::string stages[2] = {
         "TUTORIAL: 1 MAP (SAFE START)",
         "INFINITE MODE: SURVIVAL"
@@ -882,17 +797,14 @@ void CGAME::renderStageSelect() {
         int yPos = 280 + i * 120;
 
         if (mSelectedStageOption == i) {
-            // Thanh highlight cho màn được chọn
             SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 45);
             SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 50.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
-            // Viền trái highlight
             SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
             SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 50.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
-            // Mũi tên chỉ hướng nhấp nháy
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
             mFont.drawText(mRenderer, ">", (int)(panelX + 50 + arrowOffset), yPos, 2, selectColor);
             mFont.drawText(mRenderer, stages[i], (int)(panelX + 90), yPos, 2, selectColor);
@@ -901,16 +813,12 @@ void CGAME::renderStageSelect() {
         }
     }
 
-    // ─── 5. HƯỚNG DẪN ĐÁY ─────────────────────────────────────────
     SDL_Color guideColor = {80, 100, 120, 255};
     mFont.drawTextCentered(mRenderer, "USE 'W'/'S' OR 'UP'/'DOWN' TO CHOOSE  -  ENTER TO ENTER THE QUEST", 635, 1, guideColor);
 }
 
-// ====================================================================
-// RENDER PLAYING — Giao diện khi đang chơi game (SAO / Aincrad Theme)
 void CGAME::renderPlaying() {
     if (mIsInfinityMode) {
-        // Infinite mode: render lanes theo camera và danh sách lane động
         auto tileTex = [&](SDL_Texture* tex, float laneY, float laneW, float laneH) {
             float texW = 0, texH = 0;
             SDL_GetTextureSize(tex, &texW, &texH);
@@ -997,21 +905,15 @@ void CGAME::renderPlaying() {
         return;
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // HELPER: Tile texture lặp liên tục theo chiều ngang (không giãn)
-    // Ảnh sẽ được giữ nguyên tỷ lệ gốc, lặp liên tục để phủ kín lane
-    // ═══════════════════════════════════════════════════════════════
     auto tileTex = [&](SDL_Texture* tex, float laneY, float laneW, float laneH) {
         float texW = 0, texH = 0;
         SDL_GetTextureSize(tex, &texW, &texH);
         if (texW <= 0 || texH <= 0) return;
 
-        // Tính chiều rộng tile giữ nguyên tỷ lệ gốc khi scale theo chiều cao lane
         float tileW = texW * (laneH / texH);
 
         for (float x = 0.0f; x < laneW; x += tileW) {
             float drawW = (x + tileW > laneW) ? (laneW - x) : tileW;
-            // Source rect: cắt phần cuối nếu tile bị tràn ra ngoài biên phải
             float srcW = texW * (drawW / tileW);
             SDL_FRect srcRect = { 0.0f, 0.0f, srcW, texH };
             SDL_FRect dstRect = { x, laneY, drawW, laneH };
@@ -1019,18 +921,16 @@ void CGAME::renderPlaying() {
         }
     };
 
-    // ─── 1. VỈA HÈ TRÊN (Destination Safe Zone: Y = 0 đến 120) ───
+    // VỈA HÈ TRÊN (Destination Safe Zone: Y = 0 đến 120)
     if (mSidewalkTopTexture) {
         tileTex(mSidewalkTopTexture, 0.0f, 1280.0f, 120.0f);
     } else {
         SDL_FRect topSidewalk = { 0.0f, 0.0f, 1280.0f, 120.0f };
         SDL_SetRenderDrawColor(mRenderer, 34, 150, 72, 255);
         SDL_RenderFillRect(mRenderer, &topSidewalk);
-        // Viền cỏ đậm
         SDL_SetRenderDrawColor(mRenderer, 20, 95, 45, 255);
         SDL_FRect topBorder = { 0.0f, 116.0f, 1280.0f, 4.0f };
         SDL_RenderFillRect(mRenderer, &topBorder);
-        // Hoa trang trí
         SDL_SetRenderDrawColor(mRenderer, 255, 90, 110, 255);
         int flowerX[] = { 110, 260, 480, 620, 780, 960, 1140 };
         for (int fx : flowerX) {
@@ -1041,7 +941,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 2. LÀN 1: VEHICLE (Y = 120 đến 200, 80px) ───
+    // LÀN 1: VEHICLE
     if (mLaneRoadTexture) {
         tileTex(mLaneRoadTexture, 120.0f, 1280.0f, 80.0f);
     } else {
@@ -1055,7 +955,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 3. LÀN 2: MONSTER (Y = 200 đến 280, 80px) ───
+    // LÀN 2: MONSTER
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 200.0f, 1280.0f, 80.0f);
     } else {
@@ -1069,16 +969,16 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 4. LÀN 3: LÀN NGHỈ (Resting Lane - Y = 280 đến 360, 80px, AN TOÀN) ───
+    // LÀN 3: LÀN NGHỈ
     if (mLaneRestTexture) {
         tileTex(mLaneRestTexture, 280.0f, 1280.0f, 80.0f);
     } else {
-        SDL_SetRenderDrawColor(mRenderer, 120, 190, 140, 255); // Xanh ngọc lục bảo an toàn nhạt
+        SDL_SetRenderDrawColor(mRenderer, 120, 190, 140, 255);
         SDL_FRect restLane = { 0.0f, 280.0f, 1280.0f, 80.0f };
         SDL_RenderFillRect(mRenderer, &restLane);
     }
 
-    // ─── 5. LÀN 4: VEHICLE (Y = 360 đến 440, 80px) ───
+    // LÀN 4: VEHICLE
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 360.0f, 1280.0f, 80.0f);
     } else {
@@ -1092,7 +992,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 6. LÀN 5: MONSTER (Y = 440 đến 520, 80px) ───
+    // LÀN 5: MONSTER
     if (mLaneRoadTexture) {
         tileTex(mLaneRoadTexture, 440.0f, 1280.0f, 80.0f);
     } else {
@@ -1106,7 +1006,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 7. LÀN 6: MONSTER (Y = 520 đến 600, 80px) ───
+    // LÀN 6: MONSTER
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 520.0f, 1280.0f, 80.0f);
     } else {
@@ -1120,7 +1020,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 8. VỈA HÈ DƯỚI (Starting Camp: Y = 600 đến 720) ───
+    // VỈA HÈ DƯỚI (Starting Camp: Y = 600 đến 720)
     if (mSidewalkBottomTexture) {
         tileTex(mSidewalkBottomTexture, 600.0f, 1280.0f, 120.0f);
     } else {
@@ -1130,7 +1030,6 @@ void CGAME::renderPlaying() {
         SDL_SetRenderDrawColor(mRenderer, 20, 95, 45, 255);
         SDL_FRect botBorder = { 0.0f, 600.0f, 1280.0f, 4.0f };
         SDL_RenderFillRect(mRenderer, &botBorder);
-        // Hoa trang trí
         SDL_SetRenderDrawColor(mRenderer, 255, 90, 110, 255);
         int flowerX[] = { 150, 300, 520, 660, 820, 1000, 1180 };
         for (int fx : flowerX) {
@@ -1139,7 +1038,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 9. HOLOGRAPHIC NEON CYAN DIVIDERS (SAO Theme Borders) ───
+    // HOLOGRAPHIC NEON CYAN DIVIDERS (SAO Theme Borders)
     SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 140);
     float dividerY[] = { 120.0f, 200.0f, 280.0f, 360.0f, 440.0f, 520.0f, 600.0f };
     for (float dy : dividerY) {
@@ -1147,7 +1046,6 @@ void CGAME::renderPlaying() {
         SDL_RenderFillRect(mRenderer, &border);
     }
 
-    // ─── 8. VẼ CHƯỚNG NGẠI VẬT (Xe cộ và Quái vật) ───────────────────
     for (auto t : mGleameyes) {
         t->draw(mRenderer, mFont, 0.0f);
     }
@@ -1167,16 +1065,12 @@ void CGAME::renderPlaying() {
         sa->draw(mRenderer, mFont, 0.0f);
     }
 
-    // ─── 9. VẼ NGƯỜI CHƠI (Đã được phóng to cực đại!) ──────────────────
     mPlayer.draw(mRenderer, mFont, 0.0f);
 
-    // ─── 10. HUD THÔNG TIN MÀN CHƠI (Neon White & Cyan rực rỡ) ───────
     SDL_Color hudColor = {255, 255, 255, 255};
     SDL_Color cyanGlow = {80, 200, 255, 255};
-    std::string hudStageText;
-    hudStageText = "MODE: TUTORIAL";
+    std::string hudStageText = "MODE: TUTORIAL";
     
-    // Vẽ chữ HUD bóng đổ
     SDL_Color shadow = {0, 0, 0, 180};
     mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
     mFont.drawText(mRenderer, hudStageText, 20, 24, 2, cyanGlow);
@@ -1186,9 +1080,9 @@ void CGAME::renderPlaying() {
 }
 
 void CGAME::startGame() {
-    mSelectedCharOption = 0;  // Reset lựa chọn nhân vật về mặc định (Kirito)
-    mSelectedStageOption = 0; // Reset lựa chọn màn chơi về mặc định (Stage 1)
-    mState = GameState::CHAR_SELECT; // Chuyển tới màn hình chọn nhân vật trước!
+    mSelectedCharOption = 0;
+    mSelectedStageOption = 0;
+    mState = GameState::CHAR_SELECT;
 }
 
 void CGAME::resetGame() {
@@ -1273,7 +1167,6 @@ void CGAME::resetInfinite() {
 void CGAME::initInfiniteLanes() {
     mLanes.clear();
 
-    // Thêm một làn phụ ở Y = 680 để phủ kín chân màn hình (680 -> 720)
     Lane bottomFillLane;
     bottomFillLane.type = LaneType::REST;
     bottomFillLane.worldY = 680;
@@ -1445,9 +1338,8 @@ void CGAME::clearObstacles() {
 
 void CGAME::exitGame() {
     mIsRunning = false;
-    clearObstacles(); // Dọn dẹp chướng ngại vật tránh rò rỉ bộ nhớ!
+    clearObstacles();
 
-    // Giải phóng các texture quái vật
     if (mCGleameyesTexture1) { SDL_DestroyTexture(mCGleameyesTexture1); mCGleameyesTexture1 = nullptr; }
     if (mCGleameyesTexture2) { SDL_DestroyTexture(mCGleameyesTexture2); mCGleameyesTexture2 = nullptr; }
     if (mCheathcliffTexture1) { SDL_DestroyTexture(mCheathcliffTexture1); mCheathcliffTexture1 = nullptr; }
@@ -1457,7 +1349,6 @@ void CGAME::exitGame() {
     if (mCicedragonTexture1) { SDL_DestroyTexture(mCicedragonTexture1); mCicedragonTexture1 = nullptr; }
     if (mCicedragonTexture2) { SDL_DestroyTexture(mCicedragonTexture2); mCicedragonTexture2 = nullptr; }
 
-    // Giải phóng các texture bản đồ
     if (mBgPlayingTexture) { SDL_DestroyTexture(mBgPlayingTexture); mBgPlayingTexture = nullptr; }
     if (mSidewalkTopTexture) { SDL_DestroyTexture(mSidewalkTopTexture); mSidewalkTopTexture = nullptr; }
     if (mSidewalkBottomTexture) { SDL_DestroyTexture(mSidewalkBottomTexture); mSidewalkBottomTexture = nullptr; }

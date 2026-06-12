@@ -1,8 +1,8 @@
-#ifndef ANIMAL_H
-#define ANIMAL_H
+#ifndef CANIMAL_H
+#define CANIMAL_H
 
 #include <SDL3/SDL.h>
-#include "Font.h"
+#include "CFont.h"
 
 class CANIMAL {
 protected:
@@ -51,52 +51,4 @@ public:
     }
 };
 
-class CILLFANG : public CANIMAL {
-private:
-    int mStridePhase;
-
-public:
-    CILLFANG(int x, int y, int speed, int direction);
-    virtual ~CILLFANG();
-
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-class CICEDRAGON : public CANIMAL {
-private:
-    float mWingPulse;
-
-public:
-    CICEDRAGON(int x, int y, int speed, int direction);
-    virtual ~CICEDRAGON();
-
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-class CHEATHCLIFF : public CANIMAL {
-private:
-    int mDashPhase;
-
-public:
-    CHEATHCLIFF(int x, int y, int speed, int direction);
-    virtual ~CHEATHCLIFF();
-
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-class CGLEAMEYES : public CANIMAL {
-private:
-    int mArmorGlow;
-
-public:
-    CGLEAMEYES(int x, int y, int speed, int direction);
-    virtual ~CGLEAMEYES();
-
-    void Move(int limitX1, int limitX2) override;
-    void draw(SDL_Renderer* renderer, CFont& font, float cameraY) override;
-};
-
-#endif // ANIMAL_H
+#endif // CANIMAL_H
