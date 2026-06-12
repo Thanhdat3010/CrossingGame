@@ -56,6 +56,8 @@ private:
     SDL_Texture* mLaneRestTexture;
     SDL_Texture* mLaneForestTexture;
     SDL_Texture* mLaneRoadTexture;
+    SDL_Texture* mCbluewingTexture;
+    SDL_Texture* mCskyarmorTexture;
 
 
     // Người chơi
@@ -66,6 +68,8 @@ private:
     std::vector<CHEATHCLIFF*> mCheathcliffs;
     std::vector<CILLFANG*> mCillfangs;
     std::vector<CICEDRAGON*> mCicedragons;
+    std::vector<CBLUEWING*> mBluewings;
+    std::vector<CSKYARMOR*> mSkyarmors;
 
     // Cấp độ màn chơi hiện tại
     int mStage;

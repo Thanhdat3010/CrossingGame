@@ -60,6 +60,7 @@ CGAME::CGAME()
     mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
       mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
+      mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
     mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
     mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
@@ -144,6 +145,8 @@ bool CGAME::init(const char* title, int width, int height) {
     mLaneRestTexture = IMG_LoadTexture(mRenderer, "assets/lane_rest.png");
     mLaneForestTexture = IMG_LoadTexture(mRenderer, "assets/lane_forest.png");
     mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/lane_road.png");
+    mCbluewingTexture = IMG_LoadTexture(mRenderer, "assets/cbluewing.png");
+    mCskyarmorTexture = IMG_LoadTexture(mRenderer, "assets/cskyarmor.png");
 
     // Load ảnh các nhân vật Kirito & Asuna
     mPlayer.loadTextures(mRenderer);
@@ -312,6 +315,8 @@ void CGAME::update(float deltaTime) {
         moveObstacleList(mCheathcliffs, 0, 1280);
         moveObstacleList(mCillfangs, 0, 1280);
         moveObstacleList(mCicedragons, 0, 1280);
+        moveObstacleList(mBluewings, 0, 1280);
+        moveObstacleList(mSkyarmors, 0, 1280);
 
         // 2. Kiểm tra nếu người chơi băng qua đường thành công (về đích)
         // Check trước khi kiểm tra va chạm để tránh chết oan khi đã chạm chân vào vỉa hè an toàn.
@@ -324,7 +329,9 @@ void CGAME::update(float deltaTime) {
         if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
             hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
             hitPlayerAgainstList(mPlayer, mCillfangs) ||
-            hitPlayerAgainstList(mPlayer, mCicedragons)) {
+            hitPlayerAgainstList(mPlayer, mCicedragons) ||
+            hitPlayerAgainstList(mPlayer, mBluewings) ||
+            hitPlayerAgainstList(mPlayer, mSkyarmors)) {
             mPlayer.setDead(true);
             mState = GameState::GAMEOVER;
             return;
@@ -968,6 +975,8 @@ void CGAME::renderPlaying() {
         drawObstacleList(mCheathcliffs, mRenderer, mFont, mCameraY);
         drawObstacleList(mCillfangs, mRenderer, mFont, mCameraY);
         drawObstacleList(mCicedragons, mRenderer, mFont, mCameraY);
+        drawObstacleList(mBluewings, mRenderer, mFont, mCameraY);
+        drawObstacleList(mSkyarmors, mRenderer, mFont, mCameraY);
 
         mPlayer.draw(mRenderer, mFont, mCameraY);
 
@@ -1147,6 +1156,12 @@ void CGAME::renderPlaying() {
     for (auto b : mCicedragons) {
         b->draw(mRenderer, mFont, 0.0f);
     }
+    for (auto bw : mBluewings) {
+        bw->draw(mRenderer, mFont, 0.0f);
+    }
+    for (auto sa : mSkyarmors) {
+        sa->draw(mRenderer, mFont, 0.0f);
+    }
 
     // ─── 9. VẼ NGƯỜI CHƠI (Đã được phóng to cực đại!) ──────────────────
     mPlayer.draw(mRenderer, mFont, 0.0f);
@@ -1201,6 +1216,25 @@ void CGAME::resetTutorial() {
             int startX = i * spacing + randomRange(0, spacing - 40);
             if (laneType == LaneType::VEHICLE) {
                 if ((randomRange(0, 1) == 0)) {
+                    CBLUEWING* c = new CBLUEWING(startX, laneY, randomRange(4, 6), direction);
+                    c->setTexture(mCbluewingTexture);
+                    mBluewings.push_back(c);
+                } else {
+                    CSKYARMOR* t = new CSKYARMOR(startX, laneY, randomRange(2, 4), direction);
+                    t->setTexture(mCskyarmorTexture);
+                    mSkyarmors.push_back(t);
+                }
+            } else if (laneType == LaneType::MONSTER) {
+                int r = randomRange(0, 3);
+                if (r == 0) {
+                    CILLFANG* d = new CILLFANG(startX, laneY, randomRange(2, 4), direction);
+                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
+                    mCillfangs.push_back(d);
+                } else if (r == 1) {
+                    CICEDRAGON* b = new CICEDRAGON(startX, laneY, randomRange(4, 6), direction);
+                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
+                    mCicedragons.push_back(b);
+                } else if (r == 2) {
                     CHEATHCLIFF* c = new CHEATHCLIFF(startX, laneY, randomRange(3, 5), direction);
                     c->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
                     mCheathcliffs.push_back(c);
@@ -1208,16 +1242,6 @@ void CGAME::resetTutorial() {
                     CGLEAMEYES* t = new CGLEAMEYES(startX, laneY, randomRange(2, 4), direction);
                     t->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
                     mGleameyes.push_back(t);
-                }
-            } else if (laneType == LaneType::MONSTER) {
-                if ((randomRange(0, 1) == 0)) {
-                    CILLFANG* d = new CILLFANG(startX, laneY, randomRange(2, 4), direction);
-                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
-                    mCillfangs.push_back(d);
-                } else {
-                    CICEDRAGON* b = new CICEDRAGON(startX, laneY, randomRange(4, 6), direction);
-                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
-                    mCicedragons.push_back(b);
                 }
             }
         }
@@ -1295,6 +1319,29 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
             int startX = i * spacing + randomRange(0, spacing - 40);
             if (laneType == LaneType::VEHICLE) {
                 if (randomRange(0, 1) == 0) {
+                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+                    CBLUEWING* c = new CBLUEWING(startX, lane.worldY, speed, direction);
+                    c->setTexture(mCbluewingTexture);
+                    mBluewings.push_back(c);
+                } else {
+                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    CSKYARMOR* t = new CSKYARMOR(startX, lane.worldY, speed, direction);
+                    t->setTexture(mCskyarmorTexture);
+                    mSkyarmors.push_back(t);
+                }
+            } else if (laneType == LaneType::MONSTER) {
+                int r = randomRange(0, 3);
+                if (r == 0) {
+                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    CILLFANG* d = new CILLFANG(startX, lane.worldY, speed, direction);
+                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
+                    mCillfangs.push_back(d);
+                } else if (r == 1) {
+                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+                    CICEDRAGON* b = new CICEDRAGON(startX, lane.worldY, speed, direction);
+                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
+                    mCicedragons.push_back(b);
+                } else if (r == 2) {
                     int speed = randomRange(3 + speedBoost, 5 + speedBoost);
                     CHEATHCLIFF* c = new CHEATHCLIFF(startX, lane.worldY, speed, direction);
                     c->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
@@ -1304,18 +1351,6 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
                     CGLEAMEYES* t = new CGLEAMEYES(startX, lane.worldY, speed, direction);
                     t->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
                     mGleameyes.push_back(t);
-                }
-            } else if (laneType == LaneType::MONSTER) {
-                if (randomRange(0, 1) == 0) {
-                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
-                    CILLFANG* d = new CILLFANG(startX, lane.worldY, speed, direction);
-                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
-                    mCillfangs.push_back(d);
-                } else {
-                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
-                    CICEDRAGON* b = new CICEDRAGON(startX, lane.worldY, speed, direction);
-                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
-                    mCicedragons.push_back(b);
                 }
             }
         }
@@ -1331,6 +1366,8 @@ void CGAME::updateInfinite(float deltaTime) {
     moveObstacleList(mCheathcliffs, 0, 1280);
     moveObstacleList(mCillfangs, 0, 1280);
     moveObstacleList(mCicedragons, 0, 1280);
+    moveObstacleList(mBluewings, 0, 1280);
+    moveObstacleList(mSkyarmors, 0, 1280);
 
     float screenY = (float)mPlayer.getY() - mCameraY;
     if (screenY < 200.0f) {
@@ -1360,11 +1397,15 @@ void CGAME::updateInfinite(float deltaTime) {
     pruneObstacleList(mCheathcliffs, mCameraY, -200.0f, 820.0f);
     pruneObstacleList(mCillfangs, mCameraY, -200.0f, 820.0f);
     pruneObstacleList(mCicedragons, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mBluewings, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mSkyarmors, mCameraY, -200.0f, 820.0f);
 
     if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
         hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
         hitPlayerAgainstList(mPlayer, mCillfangs) ||
-        hitPlayerAgainstList(mPlayer, mCicedragons)) {
+        hitPlayerAgainstList(mPlayer, mCicedragons) ||
+        hitPlayerAgainstList(mPlayer, mBluewings) ||
+        hitPlayerAgainstList(mPlayer, mSkyarmors)) {
         mPlayer.setDead(true);
         mState = GameState::GAMEOVER;
         return;
@@ -1388,6 +1429,8 @@ void CGAME::clearObstacles() {
     clearObstacleList(mCheathcliffs);
     clearObstacleList(mCillfangs);
     clearObstacleList(mCicedragons);
+    clearObstacleList(mBluewings);
+    clearObstacleList(mSkyarmors);
 }
 
 void CGAME::exitGame() {
@@ -1411,6 +1454,8 @@ void CGAME::exitGame() {
     if (mLaneRestTexture) { SDL_DestroyTexture(mLaneRestTexture); mLaneRestTexture = nullptr; }
     if (mLaneForestTexture) { SDL_DestroyTexture(mLaneForestTexture); mLaneForestTexture = nullptr; }
     if (mLaneRoadTexture) { SDL_DestroyTexture(mLaneRoadTexture); mLaneRoadTexture = nullptr; }
+    if (mCbluewingTexture) { SDL_DestroyTexture(mCbluewingTexture); mCbluewingTexture = nullptr; }
+    if (mCskyarmorTexture) { SDL_DestroyTexture(mCskyarmorTexture); mCskyarmorTexture = nullptr; }
     
     if (mSwordTexture) {
         SDL_DestroyTexture(mSwordTexture);
