@@ -4,13 +4,60 @@
 #include <iostream>
 #include <cmath> // Dùng cho sin() tạo animation nhấp nháy
 
+namespace {
+    template <typename T>
+    void moveObstacleList(std::vector<T*>& items, int limitX1, int limitX2) {
+        for (auto* item : items) {
+            item->Move(limitX1, limitX2);
+        }
+    }
+
+    template <typename T>
+    void drawObstacleList(std::vector<T*>& items, SDL_Renderer* renderer, CFont& font, float cameraY) {
+        for (auto* item : items) {
+            item->draw(renderer, font, cameraY);
+        }
+    }
+
+    template <typename T>
+    void clearObstacleList(std::vector<T*>& items) {
+        for (auto* item : items) {
+            delete item;
+        }
+        items.clear();
+    }
+
+    template <typename T>
+    void pruneObstacleList(std::vector<T*>& items, float cameraY, float lowerBound, float upperBound) {
+        for (size_t i = 0; i < items.size();) {
+            float y = (float)items[i]->getY() - cameraY;
+            if (y < lowerBound || y > upperBound) {
+                delete items[i];
+                items.erase(items.begin() + i);
+            } else {
+                ++i;
+            }
+        }
+    }
+
+    template <typename T>
+    bool hitPlayerAgainstList(CPEOPLE& player, std::vector<T*>& items) {
+        for (auto* item : items) {
+            if (player.isImpact(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 CGAME::CGAME() 
     : mWindow(nullptr), mRenderer(nullptr), mIsRunning(false), mState(GameState::MENU),
       mSwordTexture(nullptr), 
-      mTruckTexture1(nullptr), mTruckTexture2(nullptr),
-      mCarTexture1(nullptr), mCarTexture2(nullptr),
-      mDinoTexture1(nullptr), mDinoTexture2(nullptr),
-      mBirdTexture1(nullptr), mBirdTexture2(nullptr),
+    mCGleameyesTexture1(nullptr), mCGleameyesTexture2(nullptr),
+    mCheathcliffTexture1(nullptr), mCheathcliffTexture2(nullptr),
+    mCillfangTexture1(nullptr), mCillfangTexture2(nullptr),
+    mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
       mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
@@ -72,29 +119,25 @@ bool CGAME::init(const char* title, int width, int height) {
     }
 
     // Load các ảnh PNG tùy chọn cho bản đồ & quái vật (SAO theme)
-    // 1. Truck
-    mTruckTexture1 = IMG_LoadTexture(mRenderer, "assets/truck1.png");
-    if (!mTruckTexture1) mTruckTexture1 = IMG_LoadTexture(mRenderer, "assets/truck.png");
-    mTruckTexture2 = IMG_LoadTexture(mRenderer, "assets/truck2.png");
-    if (!mTruckTexture2) mTruckTexture2 = mTruckTexture1;
+    // 1. CGLEAMEYES
+    mCGleameyesTexture1 = IMG_LoadTexture(mRenderer, "assets/cgleameyes1.png");
+    mCGleameyesTexture2 = IMG_LoadTexture(mRenderer, "assets/cgleameyes2.png");
+    if (!mCGleameyesTexture2) mCGleameyesTexture2 = mCGleameyesTexture1;
 
-    // 2. Car
-    mCarTexture1 = IMG_LoadTexture(mRenderer, "assets/car1.png");
-    if (!mCarTexture1) mCarTexture1 = IMG_LoadTexture(mRenderer, "assets/car.png");
-    mCarTexture2 = IMG_LoadTexture(mRenderer, "assets/car2.png");
-    if (!mCarTexture2) mCarTexture2 = mCarTexture1;
+    // 2. CHEATHCLIFF
+    mCheathcliffTexture1 = IMG_LoadTexture(mRenderer, "assets/cheathcliff1.png");
+    mCheathcliffTexture2 = IMG_LoadTexture(mRenderer, "assets/cheathcliff2.png");
+    if (!mCheathcliffTexture2) mCheathcliffTexture2 = mCheathcliffTexture1;
 
-    // 3. Dino
-    mDinoTexture1 = IMG_LoadTexture(mRenderer, "assets/dino1.png");
-    if (!mDinoTexture1) mDinoTexture1 = IMG_LoadTexture(mRenderer, "assets/dino.png");
-    mDinoTexture2 = IMG_LoadTexture(mRenderer, "assets/dino2.png");
-    if (!mDinoTexture2) mDinoTexture2 = mDinoTexture1;
+    // 3. CILLFANG
+    mCillfangTexture1 = IMG_LoadTexture(mRenderer, "assets/cillfang1.png");
+    mCillfangTexture2 = IMG_LoadTexture(mRenderer, "assets/cillfang2.png");
+    if (!mCillfangTexture2) mCillfangTexture2 = mCillfangTexture1;
 
-    // 4. Bird
-    mBirdTexture1 = IMG_LoadTexture(mRenderer, "assets/bird1.png");
-    if (!mBirdTexture1) mBirdTexture1 = IMG_LoadTexture(mRenderer, "assets/bird.png");
-    mBirdTexture2 = IMG_LoadTexture(mRenderer, "assets/bird2.png");
-    if (!mBirdTexture2) mBirdTexture2 = mBirdTexture1;
+    // 4. CICEDRAGON
+    mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/cicedragon1.png");
+    mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/cicedragon2.png");
+    if (!mCicedragonTexture2) mCicedragonTexture2 = mCicedragonTexture1;
     mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/bg_playing.png");
     mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_top.png");
     mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_bottom.png");
@@ -265,18 +308,10 @@ void CGAME::update(float deltaTime) {
         mPlayer.update(deltaTime); // Cập nhật hoạt ảnh trượt và nhấp nhô của người chơi
 
         // 1. Di chuyển toàn bộ xe cộ và động vật
-        for (auto t : mTrucks) {
-            t->Move(0, 1280);
-        }
-        for (auto c : mCars) {
-            c->Move(0, 1280);
-        }
-        for (auto d : mDinos) {
-            d->Move(0, 1280);
-        }
-        for (auto b : mBirds) {
-            b->Move(0, 1280);
-        }
+        moveObstacleList(mGleameyes, 0, 1280);
+        moveObstacleList(mCheathcliffs, 0, 1280);
+        moveObstacleList(mCillfangs, 0, 1280);
+        moveObstacleList(mCicedragons, 0, 1280);
 
         // 2. Kiểm tra nếu người chơi băng qua đường thành công (về đích)
         // Check trước khi kiểm tra va chạm để tránh chết oan khi đã chạm chân vào vỉa hè an toàn.
@@ -286,35 +321,13 @@ void CGAME::update(float deltaTime) {
         }
 
         // 3. Kiểm tra va chạm với nhân vật (AABB)
-        for (auto t : mTrucks) {
-            if (mPlayer.isImpact(t)) {
-                mPlayer.setDead(true);
-                mState = GameState::GAMEOVER;
-                return;
-            }
-        }
-        for (auto c : mCars) {
-            if (mPlayer.isImpact(c)) {
-                mPlayer.setDead(true);
-                mState = GameState::GAMEOVER;
-                return;
-            }
-        }
-        for (auto d : mDinos) {
-            if (mPlayer.isImpact(d)) {
-                d->Tell(); // Phát tiếng kêu gầm rú khi va chạm
-                mPlayer.setDead(true);
-                mState = GameState::GAMEOVER;
-                return;
-            }
-        }
-        for (auto b : mBirds) {
-            if (mPlayer.isImpact(b)) {
-                b->Tell(); // Phát tiếng kêu của chim khi va chạm
-                mPlayer.setDead(true);
-                mState = GameState::GAMEOVER;
-                return;
-            }
+        if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
+            hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
+            hitPlayerAgainstList(mPlayer, mCillfangs) ||
+            hitPlayerAgainstList(mPlayer, mCicedragons)) {
+            mPlayer.setDead(true);
+            mState = GameState::GAMEOVER;
+            return;
         }
     }
 }
@@ -907,8 +920,8 @@ void CGAME::renderPlaying() {
             float screenY = (float)lane.worldY - mCameraY;
             if (screenY < -mLaneHeight || screenY > 720.0f) continue;
 
-            bool isRoad = (lane.type == LaneType::ROAD_CAR || lane.type == LaneType::ROAD_BIRD);
-            bool isForest = (lane.type == LaneType::FOREST_DINO || lane.type == LaneType::FOREST_TRUCK);
+            bool isRoad = (lane.type == LaneType::VEHICLE);
+            bool isForest = (lane.type == LaneType::MONSTER);
 
             if (lane.type == LaneType::REST) {
                 if (mLaneRestTexture) {
@@ -951,18 +964,10 @@ void CGAME::renderPlaying() {
             SDL_RenderFillRect(mRenderer, &border);
         }
 
-        for (auto t : mTrucks) {
-            t->draw(mRenderer, mFont, mCameraY);
-        }
-        for (auto c : mCars) {
-            c->draw(mRenderer, mFont, mCameraY);
-        }
-        for (auto d : mDinos) {
-            d->draw(mRenderer, mFont, mCameraY);
-        }
-        for (auto b : mBirds) {
-            b->draw(mRenderer, mFont, mCameraY);
-        }
+        drawObstacleList(mGleameyes, mRenderer, mFont, mCameraY);
+        drawObstacleList(mCheathcliffs, mRenderer, mFont, mCameraY);
+        drawObstacleList(mCillfangs, mRenderer, mFont, mCameraY);
+        drawObstacleList(mCicedragons, mRenderer, mFont, mCameraY);
 
         mPlayer.draw(mRenderer, mFont, mCameraY);
 
@@ -1023,7 +1028,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 2. LÀN 1: ROAD (Y = 120 đến 200, 80px, CBIRD) ───
+    // ─── 2. LÀN 1: VEHICLE (Y = 120 đến 200, 80px) ───
     if (mLaneRoadTexture) {
         tileTex(mLaneRoadTexture, 120.0f, 1280.0f, 80.0f);
     } else {
@@ -1037,7 +1042,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 3. LÀN 2: FOREST (Y = 200 đến 280, 80px, CDINAUSOR) ───
+    // ─── 3. LÀN 2: MONSTER (Y = 200 đến 280, 80px) ───
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 200.0f, 1280.0f, 80.0f);
     } else {
@@ -1060,7 +1065,7 @@ void CGAME::renderPlaying() {
         SDL_RenderFillRect(mRenderer, &restLane);
     }
 
-    // ─── 5. LÀN 4: FOREST (Y = 360 đến 440, 80px, CTRUCK) ───
+    // ─── 5. LÀN 4: VEHICLE (Y = 360 đến 440, 80px) ───
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 360.0f, 1280.0f, 80.0f);
     } else {
@@ -1074,7 +1079,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 6. LÀN 5: ROAD (Y = 440 đến 520, 80px, CBIRD) ───
+    // ─── 6. LÀN 5: MONSTER (Y = 440 đến 520, 80px) ───
     if (mLaneRoadTexture) {
         tileTex(mLaneRoadTexture, 440.0f, 1280.0f, 80.0f);
     } else {
@@ -1088,7 +1093,7 @@ void CGAME::renderPlaying() {
         }
     }
 
-    // ─── 7. LÀN 6: FOREST (Y = 520 đến 600, 80px, CDINAUSOR) ───
+    // ─── 7. LÀN 6: MONSTER (Y = 520 đến 600, 80px) ───
     if (mLaneForestTexture) {
         tileTex(mLaneForestTexture, 520.0f, 1280.0f, 80.0f);
     } else {
@@ -1130,16 +1135,16 @@ void CGAME::renderPlaying() {
     }
 
     // ─── 8. VẼ CHƯỚNG NGẠI VẬT (Xe cộ và Quái vật) ───────────────────
-    for (auto t : mTrucks) {
+    for (auto t : mGleameyes) {
         t->draw(mRenderer, mFont, 0.0f);
     }
-    for (auto c : mCars) {
+    for (auto c : mCheathcliffs) {
         c->draw(mRenderer, mFont, 0.0f);
     }
-    for (auto d : mDinos) {
+    for (auto d : mCillfangs) {
         d->draw(mRenderer, mFont, 0.0f);
     }
-    for (auto b : mBirds) {
+    for (auto b : mCicedragons) {
         b->draw(mRenderer, mFont, 0.0f);
     }
 
@@ -1190,45 +1195,39 @@ void CGAME::resetTutorial() {
     mPlayer.resetPosition();
     clearObstacles();
 
-    // Tutorial: lane cố định + quái cố định
-    const int birdY = 120;
-    const int dinoY1 = 200;
-    const int dinoY2 = 360;
-    const int carY = 440;
-    const int truckY = 520;
+    auto spawnLane = [&](LaneType laneType, int laneY, int laneCount, int direction) {
+        int spacing = 1280 / laneCount;
+        for (int i = 0; i < laneCount; ++i) {
+            int startX = i * spacing + randomRange(0, spacing - 40);
+            if (laneType == LaneType::VEHICLE) {
+                if ((randomRange(0, 1) == 0)) {
+                    CHEATHCLIFF* c = new CHEATHCLIFF(startX, laneY, randomRange(3, 5), direction);
+                    c->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
+                    mCheathcliffs.push_back(c);
+                } else {
+                    CGLEAMEYES* t = new CGLEAMEYES(startX, laneY, randomRange(2, 4), direction);
+                    t->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
+                    mGleameyes.push_back(t);
+                }
+            } else if (laneType == LaneType::MONSTER) {
+                if ((randomRange(0, 1) == 0)) {
+                    CILLFANG* d = new CILLFANG(startX, laneY, randomRange(2, 4), direction);
+                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
+                    mCillfangs.push_back(d);
+                } else {
+                    CICEDRAGON* b = new CICEDRAGON(startX, laneY, randomRange(4, 6), direction);
+                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
+                    mCicedragons.push_back(b);
+                }
+            }
+        }
+    };
 
-    int birdXs[] = {100, 520, 900};
-    int dinoXs[] = {150, 650, 1050};
-    int carXs[] = {200, 600, 1000};
-    int truckXs[] = {100, 500, 900};
-
-    for (int x : birdXs) {
-        CBIRD* b = new CBIRD(x, birdY, 4, -1);
-        b->setTextures(mBirdTexture1, mBirdTexture2);
-        mBirds.push_back(b);
-    }
-
-    for (int x : dinoXs) {
-        CDINAUSOR* d1 = new CDINAUSOR(x, dinoY1, 3, 1);
-        d1->setTextures(mDinoTexture1, mDinoTexture2);
-        mDinos.push_back(d1);
-
-        CDINAUSOR* d2 = new CDINAUSOR(x + 80, dinoY2, 3, 1);
-        d2->setTextures(mDinoTexture1, mDinoTexture2);
-        mDinos.push_back(d2);
-    }
-
-    for (int x : carXs) {
-        CCAR* c = new CCAR(x, carY, 4, -1);
-        c->setTextures(mCarTexture1, mCarTexture2);
-        mCars.push_back(c);
-    }
-
-    for (int x : truckXs) {
-        CTRUCK* t = new CTRUCK(x, truckY, 2, 1);
-        t->setTextures(mTruckTexture1, mTruckTexture2);
-        mTrucks.push_back(t);
-    }
+    spawnLane(LaneType::MONSTER, 120, 3, -1);
+    spawnLane(LaneType::MONSTER, 200, 3, 1);
+    spawnLane(LaneType::VEHICLE, 360, 3, 1);
+    spawnLane(LaneType::VEHICLE, 440, 3, -1);
+    spawnLane(LaneType::MONSTER, 520, 3, 1);
 }
 
 void CGAME::resetInfinite() {
@@ -1246,7 +1245,6 @@ void CGAME::resetInfinite() {
 void CGAME::initInfiniteLanes() {
     mLanes.clear();
 
-    // Lane xuất phát an toàn
     Lane startLane;
     startLane.type = LaneType::REST;
     startLane.worldY = 600;
@@ -1259,12 +1257,12 @@ void CGAME::initInfiniteLanes() {
 
 void CGAME::addLaneAbove() {
     static const LaneType pattern[] = {
-        LaneType::ROAD_CAR,
-        LaneType::FOREST_DINO,
+        LaneType::VEHICLE,
+        LaneType::MONSTER,
         LaneType::REST,
-        LaneType::FOREST_TRUCK,
-        LaneType::ROAD_BIRD,
-        LaneType::FOREST_DINO
+        LaneType::MONSTER,
+        LaneType::VEHICLE,
+        LaneType::MONSTER
     };
     const int patternCount = (int)(sizeof(pattern) / sizeof(pattern[0]));
 
@@ -1292,67 +1290,47 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
     int count = randomRange(2, 4);
     int spacing = 1280 / count;
 
-    if (lane.type == LaneType::ROAD_CAR) {
+    auto spawnLane = [&](LaneType laneType, int direction) {
         for (int i = 0; i < count; ++i) {
             int startX = i * spacing + randomRange(0, spacing - 40);
-            int speed = randomRange(3 + speedBoost, 5 + speedBoost);
-            CCAR* c = new CCAR(startX, lane.worldY, speed, -1);
-            c->setTextures(mCarTexture1, mCarTexture2);
-            mCars.push_back(c);
+            if (laneType == LaneType::VEHICLE) {
+                if (randomRange(0, 1) == 0) {
+                    int speed = randomRange(3 + speedBoost, 5 + speedBoost);
+                    CHEATHCLIFF* c = new CHEATHCLIFF(startX, lane.worldY, speed, direction);
+                    c->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
+                    mCheathcliffs.push_back(c);
+                } else {
+                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    CGLEAMEYES* t = new CGLEAMEYES(startX, lane.worldY, speed, direction);
+                    t->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
+                    mGleameyes.push_back(t);
+                }
+            } else if (laneType == LaneType::MONSTER) {
+                if (randomRange(0, 1) == 0) {
+                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    CILLFANG* d = new CILLFANG(startX, lane.worldY, speed, direction);
+                    d->setTextures(mCillfangTexture1, mCillfangTexture2);
+                    mCillfangs.push_back(d);
+                } else {
+                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+                    CICEDRAGON* b = new CICEDRAGON(startX, lane.worldY, speed, direction);
+                    b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
+                    mCicedragons.push_back(b);
+                }
+            }
         }
-        return;
-    }
+    };
 
-    if (lane.type == LaneType::ROAD_BIRD) {
-        for (int i = 0; i < count; ++i) {
-            int startX = i * spacing + randomRange(0, spacing - 40);
-            int speed = randomRange(4 + speedBoost, 6 + speedBoost);
-            CBIRD* b = new CBIRD(startX, lane.worldY, speed, -1);
-            b->setTextures(mBirdTexture1, mBirdTexture2);
-            mBirds.push_back(b);
-        }
-        return;
-    }
-
-    if (lane.type == LaneType::FOREST_DINO) {
-        for (int i = 0; i < count; ++i) {
-            int startX = i * spacing + randomRange(0, spacing - 40);
-            int speed = randomRange(2 + speedBoost, 4 + speedBoost);
-            CDINAUSOR* d = new CDINAUSOR(startX, lane.worldY, speed, 1);
-            d->setTextures(mDinoTexture1, mDinoTexture2);
-            mDinos.push_back(d);
-        }
-        return;
-    }
-
-    if (lane.type == LaneType::FOREST_TRUCK) {
-        for (int i = 0; i < count; ++i) {
-            int startX = i * spacing + randomRange(0, spacing - 40);
-            int speed = randomRange(1 + speedBoost, 3 + speedBoost);
-            CTRUCK* t = new CTRUCK(startX, lane.worldY, speed, 1);
-            t->setTextures(mTruckTexture1, mTruckTexture2);
-            mTrucks.push_back(t);
-        }
-        return;
-    }
+    spawnLane(lane.type, (lane.type == LaneType::VEHICLE) ? -1 : 1);
 }
 
 void CGAME::updateInfinite(float deltaTime) {
     mPlayer.update(deltaTime);
 
-    // Di chuyển quái vật
-    for (auto t : mTrucks) {
-        t->Move(0, 1280);
-    }
-    for (auto c : mCars) {
-        c->Move(0, 1280);
-    }
-    for (auto d : mDinos) {
-        d->Move(0, 1280);
-    }
-    for (auto b : mBirds) {
-        b->Move(0, 1280);
-    }
+    moveObstacleList(mGleameyes, 0, 1280);
+    moveObstacleList(mCheathcliffs, 0, 1280);
+    moveObstacleList(mCillfangs, 0, 1280);
+    moveObstacleList(mCicedragons, 0, 1280);
 
     float screenY = (float)mPlayer.getY() - mCameraY;
     if (screenY < 200.0f) {
@@ -1378,52 +1356,18 @@ void CGAME::updateInfinite(float deltaTime) {
     }
     pruneLanes();
 
-    auto pruneObstacles = [&](auto& vec) {
-        for (size_t i = 0; i < vec.size();) {
-            float y = (float)vec[i]->getY() - mCameraY;
-            if (y > 820.0f || y < -200.0f) {
-                delete vec[i];
-                vec.erase(vec.begin() + i);
-            } else {
-                ++i;
-            }
-        }
-    };
+    pruneObstacleList(mGleameyes, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mCheathcliffs, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mCillfangs, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mCicedragons, mCameraY, -200.0f, 820.0f);
 
-    pruneObstacles(mTrucks);
-    pruneObstacles(mCars);
-    pruneObstacles(mDinos);
-    pruneObstacles(mBirds);
-
-    for (auto t : mTrucks) {
-        if (mPlayer.isImpact(t)) {
-            mPlayer.setDead(true);
-            mState = GameState::GAMEOVER;
-            return;
-        }
-    }
-    for (auto c : mCars) {
-        if (mPlayer.isImpact(c)) {
-            mPlayer.setDead(true);
-            mState = GameState::GAMEOVER;
-            return;
-        }
-    }
-    for (auto d : mDinos) {
-        if (mPlayer.isImpact(d)) {
-            d->Tell();
-            mPlayer.setDead(true);
-            mState = GameState::GAMEOVER;
-            return;
-        }
-    }
-    for (auto b : mBirds) {
-        if (mPlayer.isImpact(b)) {
-            b->Tell();
-            mPlayer.setDead(true);
-            mState = GameState::GAMEOVER;
-            return;
-        }
+    if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
+        hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
+        hitPlayerAgainstList(mPlayer, mCillfangs) ||
+        hitPlayerAgainstList(mPlayer, mCicedragons)) {
+        mPlayer.setDead(true);
+        mState = GameState::GAMEOVER;
+        return;
     }
 }
 
@@ -1440,25 +1384,10 @@ void CGAME::resumeGame() {
 }
 
 void CGAME::clearObstacles() {
-    for (auto t : mTrucks) {
-        delete t;
-    }
-    mTrucks.clear();
-
-    for (auto c : mCars) {
-        delete c;
-    }
-    mCars.clear();
-
-    for (auto d : mDinos) {
-        delete d;
-    }
-    mDinos.clear();
-
-    for (auto b : mBirds) {
-        delete b;
-    }
-    mBirds.clear();
+    clearObstacleList(mGleameyes);
+    clearObstacleList(mCheathcliffs);
+    clearObstacleList(mCillfangs);
+    clearObstacleList(mCicedragons);
 }
 
 void CGAME::exitGame() {
@@ -1466,14 +1395,14 @@ void CGAME::exitGame() {
     clearObstacles(); // Dọn dẹp chướng ngại vật tránh rò rỉ bộ nhớ!
 
     // Giải phóng các texture quái vật
-    if (mTruckTexture1) { SDL_DestroyTexture(mTruckTexture1); mTruckTexture1 = nullptr; }
-    if (mTruckTexture2) { SDL_DestroyTexture(mTruckTexture2); mTruckTexture2 = nullptr; }
-    if (mCarTexture1) { SDL_DestroyTexture(mCarTexture1); mCarTexture1 = nullptr; }
-    if (mCarTexture2) { SDL_DestroyTexture(mCarTexture2); mCarTexture2 = nullptr; }
-    if (mDinoTexture1) { SDL_DestroyTexture(mDinoTexture1); mDinoTexture1 = nullptr; }
-    if (mDinoTexture2) { SDL_DestroyTexture(mDinoTexture2); mDinoTexture2 = nullptr; }
-    if (mBirdTexture1) { SDL_DestroyTexture(mBirdTexture1); mBirdTexture1 = nullptr; }
-    if (mBirdTexture2) { SDL_DestroyTexture(mBirdTexture2); mBirdTexture2 = nullptr; }
+    if (mCGleameyesTexture1) { SDL_DestroyTexture(mCGleameyesTexture1); mCGleameyesTexture1 = nullptr; }
+    if (mCGleameyesTexture2) { SDL_DestroyTexture(mCGleameyesTexture2); mCGleameyesTexture2 = nullptr; }
+    if (mCheathcliffTexture1) { SDL_DestroyTexture(mCheathcliffTexture1); mCheathcliffTexture1 = nullptr; }
+    if (mCheathcliffTexture2) { SDL_DestroyTexture(mCheathcliffTexture2); mCheathcliffTexture2 = nullptr; }
+    if (mCillfangTexture1) { SDL_DestroyTexture(mCillfangTexture1); mCillfangTexture1 = nullptr; }
+    if (mCillfangTexture2) { SDL_DestroyTexture(mCillfangTexture2); mCillfangTexture2 = nullptr; }
+    if (mCicedragonTexture1) { SDL_DestroyTexture(mCicedragonTexture1); mCicedragonTexture1 = nullptr; }
+    if (mCicedragonTexture2) { SDL_DestroyTexture(mCicedragonTexture2); mCicedragonTexture2 = nullptr; }
 
     // Giải phóng các texture bản đồ
     if (mBgPlayingTexture) { SDL_DestroyTexture(mBgPlayingTexture); mBgPlayingTexture = nullptr; }

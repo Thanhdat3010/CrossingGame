@@ -1,32 +1,27 @@
 #include "Animal.h"
-#include <iostream>
-#include <SDL3_mixer/SDL_mixer.h> // Sẽ dùng để phát SFX ở Phase 2
 
-// ====================================================================
-// TRIỂN KHAI LỚP CANIMAL (Base Class)
-// ====================================================================
 CANIMAL::CANIMAL(int x, int y, int speed, int direction)
-    : mX(x), mY(y), mSpeed(speed), mDirection(direction), mWidth(48), mHeight(48), mTexture1(nullptr), mTexture2(nullptr) {
+    : mX(x), mY(y), mWidth(48), mHeight(48), mSpeed(speed), mDirection(direction), mTexture1(nullptr), mTexture2(nullptr) {
 }
 
 CANIMAL::~CANIMAL() {}
 
-
 // ====================================================================
-// TRIỂN KHAI LỚP CDINAUSOR (Khủng long bạo chúa T-Rex)
+// TRIỂN KHAI LỚP CILLFANG
 // ====================================================================
-CDINAUSOR::CDINAUSOR(int x, int y, int speed, int direction)
-    : CANIMAL(x, y, speed, direction) {
-    mWidth = 110;  // Quái rừng rộng 110px
-    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
+CILLFANG::CILLFANG(int x, int y, int speed, int direction)
+    : CANIMAL(x, y, speed, direction), mStridePhase(0) {
+    mWidth = 110;
+    mHeight = 80;
 }
 
-CDINAUSOR::~CDINAUSOR() {}
+CILLFANG::~CILLFANG() {}
 
-void CDINAUSOR::Move(int limitX1, int limitX2) {
+void CILLFANG::Move(int limitX1, int limitX2) {
     mX += mDirection * mSpeed;
 
-    // Cơ chế Băng rìa màn hình (Wrap-around)
+    mStridePhase = (mStridePhase + 1) % 4;
+
     if (mDirection == 1 && mX > limitX2) {
         mX = limitX1 - mWidth;
     }
@@ -35,21 +30,13 @@ void CDINAUSOR::Move(int limitX1, int limitX2) {
     }
 }
 
-void CDINAUSOR::Tell() {
-    // Phase 1: In tạm log ra màn hình
-    // Phase 2: Sẽ phát file âm thanh gầm rú: Mix_PlayChannel(-1, roarSFX, 0);
-    std::cout << "CDINAUSOR: ROOAAARRRR!" << std::endl;
-}
-
-void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+void CILLFANG::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     float baseY = (float)mY - cameraY;
     if (mTexture1) {
-        // Tính toán frame hiện tại dựa vào vị trí di chuyển mX để khớp nhịp chân chạm đất với tốc độ chạy thật
-        int frameIndex = (std::abs(mX) / 120) % 2; // Cứ đi 120px đổi 1 frame luân phiên (chậm lại gấp ba để có bước chạy tự nhiên, thư thả)
+        int frameIndex = (std::abs(mX) / 120) % 2;
         SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
         if (!activeTex) activeTex = mTexture1;
 
-        // Tăng kích thước vẽ trực quan (visual scale) lên 1.3 lần để bù đắp viền trong suốt của AI, giữ collision công bằng
         float drawW = (float)mWidth * 1.3f;
         float drawH = (float)mHeight * 1.3f;
         float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
@@ -61,8 +48,6 @@ void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
         SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
-    // Vẽ Khủng long T-Rex Pixel phong cách dễ thương (emerald green)
-    // Thân mình chính (Chữ nhật đứng bo)
     SDL_SetRenderDrawColor(renderer, 46, 117, 89, 255); // Xanh lá đậm T-Rex
     SDL_FRect body = { (float)mX + 16, baseY + 12, 32.0f, 24.0f };
     SDL_RenderFillRect(renderer, &body);
@@ -96,9 +81,8 @@ void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     }
     SDL_RenderFillRect(renderer, &tail);
 
-    // Hiệu ứng bước chạy chân (Chân đập liên tục nhịp nhàng theo thời gian)
     Uint64 ticks = SDL_GetTicks();
-    bool legState = (ticks / 450) % 2 == 0; // Đổi chân chạy mỗi 450ms (chậm lại gấp ba cho tự nhiên)
+    bool legState = (ticks / 450) % 2 == 0;
 
     SDL_SetRenderDrawColor(renderer, 24, 78, 55, 255); // Chân màu xanh sẫm hơn
     SDL_FRect leg1, leg2;
@@ -114,29 +98,28 @@ void CDINAUSOR::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     SDL_RenderFillRect(renderer, &leg1);
     SDL_RenderFillRect(renderer, &leg2);
 
-    // Vẽ chữ "DINO" nhỏ trên mình trang trí
     SDL_Color textCol = {255, 255, 255, 255};
-    font.drawText(renderer, "DINO", mX + (mDirection == 1 ? 18 : 22), (int)(baseY + 18), 1, textCol);
+    font.drawText(renderer, "FANG", mX + (mDirection == 1 ? 18 : 22), (int)(baseY + 18), 1, textCol);
 }
 
 
 // ====================================================================
-// TRIỂN KHAI LỚP CBIRD (Chim đại bàng bay lượn)
+// TRIỂN KHAI LỚP CICEDRAGON
 // ====================================================================
-CBIRD::CBIRD(int x, int y, int speed, int direction)
-    : CANIMAL(x, y, speed, direction) {
-    mWidth = 100;  // Quái bay rộng 100px
-    mHeight = 80;  // Cao 80px / lane 80px → phủ kín làn đường
+CICEDRAGON::CICEDRAGON(int x, int y, int speed, int direction)
+    : CANIMAL(x, y, speed, direction), mWingPulse(0.0f) {
+    mWidth = 100;
+    mHeight = 80;
 }
 
-CBIRD::~CBIRD() {}
+CICEDRAGON::~CICEDRAGON() {}
 
-void CBIRD::Move(int limitX1, int limitX2) {
+void CICEDRAGON::Move(int limitX1, int limitX2) {
     mX += mDirection * mSpeed;
 
-    // Bay lượn lên xuống nhẹ hình sin cho tự nhiên sinh động
     Uint64 ticks = SDL_GetTicks();
-    mY += (int)(sinf((float)ticks / 200.0f) * 1.5f); // Nhấp nhô 1.5 pixel tạo nhịp bay
+    mWingPulse = sinf((float)ticks / 200.0f);
+    mY += (int)(mWingPulse * 1.5f);
 
     if (mDirection == 1 && mX > limitX2) {
         mX = limitX1 - mWidth;
@@ -146,21 +129,13 @@ void CBIRD::Move(int limitX1, int limitX2) {
     }
 }
 
-void CBIRD::Tell() {
-    // In tạm log ra màn hình
-    // Mix_PlayChannel(-1, chirpSFX, 0);
-    std::cout << "CBIRD: CHIRP CHIRP!" << std::endl;
-}
-
-void CBIRD::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+void CICEDRAGON::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     float baseY = (float)mY - cameraY;
     if (mTexture1) {
-        // Tính toán frame bay dựa vào vị trí mX
-        int frameIndex = (std::abs(mX) / 140) % 2; // Cứ đi 140px đổi 1 frame vỗ cánh luân phiên (chậm lại gấp bốn cho cánh vỗ uyển chuyển)
+        int frameIndex = (std::abs(mX) / 140) % 2;
         SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
         if (!activeTex) activeTex = mTexture1;
 
-        // Tăng kích thước vẽ trực quan (visual scale) lên 1.3 lần để bù đắp viền trong suốt của AI, giữ va chạm chính xác
         float drawW = (float)mWidth * 1.3f;
         float drawH = (float)mHeight * 1.3f;
         float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
@@ -172,8 +147,6 @@ void CBIRD::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
         SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
         return;
     }
-    // Vẽ chim phượng hoàng lửa pixel đỏ hồng siêu dễ thương
-    // Thân chim
     SDL_SetRenderDrawColor(renderer, 240, 84, 84, 255); // Màu đỏ hồng Ruby
     SDL_FRect body = { (float)mX + 12, baseY + 10, 24.0f, 16.0f };
     SDL_RenderFillRect(renderer, &body);
@@ -202,7 +175,6 @@ void CBIRD::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     }
     SDL_RenderFillRect(renderer, &tail);
 
-    // Animation Vỗ Cánh (Lên / Xuống) mỗi 300ms
     Uint64 ticks = SDL_GetTicks();
     bool wingUp = (ticks / 300) % 2 == 0;
 
@@ -217,7 +189,173 @@ void CBIRD::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     }
     SDL_RenderFillRect(renderer, &wing);
 
-    // Vẽ chữ "BIRD" nhỏ xinh xắn
     SDL_Color textCol = {255, 255, 255, 255};
-    font.drawText(renderer, "BIRD", mX + (mDirection == 1 ? 13 : 21), (int)(baseY + 14), 1, textCol);
+    font.drawText(renderer, "ICE", mX + (mDirection == 1 ? 13 : 21), (int)(baseY + 14), 1, textCol);
+}
+
+// ====================================================================
+// TRIỂN KHAI LỚP CHEATHCLIFF
+// ====================================================================
+CHEATHCLIFF::CHEATHCLIFF(int x, int y, int speed, int direction)
+    : CANIMAL(x, y, speed, direction), mDashPhase(0) {
+    mWidth = 120;
+    mHeight = 80;
+}
+
+CHEATHCLIFF::~CHEATHCLIFF() {}
+
+void CHEATHCLIFF::Move(int limitX1, int limitX2) {
+    mX += mDirection * mSpeed;
+    mDashPhase = (mDashPhase + 1) % 6;
+
+    if (mDirection == 1 && mX > limitX2) {
+        mX = limitX1 - mWidth;
+    }
+    else if (mDirection == -1 && mX < limitX1 - mWidth) {
+        mX = limitX2;
+    }
+}
+
+void CHEATHCLIFF::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+    float baseY = (float)mY - cameraY;
+    if (mTexture1) {
+        int frameIndex = (std::abs(mX) / 100) % 2;
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
+        float drawW = (float)mWidth * 1.4f;
+        float drawH = (float)mHeight * 1.4f;
+        float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
+        float drawY = baseY - (drawH - (float)mHeight) / 2.0f;
+
+        SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
+        SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
+        return;
+    }
+
+    SDL_SetRenderDrawColor(renderer, 247, 127, 0, 255);
+    SDL_FRect bodyRect = { (float)mX, baseY + 12, 72.0f, 16.0f };
+    SDL_RenderFillRect(renderer, &bodyRect);
+
+    SDL_SetRenderDrawColor(renderer, 252, 191, 73, 255);
+    SDL_FRect roofRect;
+    if (mDirection == 1) {
+        roofRect = { (float)mX + 16, baseY + 2, 36.0f, 10.0f };
+    } else {
+        roofRect = { (float)mX + 20, baseY + 2, 36.0f, 10.0f };
+    }
+    SDL_RenderFillRect(renderer, &roofRect);
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_FRect windowRect;
+    if (mDirection == 1) {
+        windowRect = { (float)mX + 32, baseY + 4, 16.0f, 6.0f };
+    } else {
+        windowRect = { (float)mX + 24, baseY + 4, 16.0f, 6.0f };
+    }
+    SDL_RenderFillRect(renderer, &windowRect);
+
+    SDL_SetRenderDrawColor(renderer, 0, 48, 73, 255);
+    SDL_FRect w1 = { (float)mX + 10, baseY + 24, 12.0f, 8.0f };
+    SDL_FRect w2 = { (float)mX + 50, baseY + 24, 12.0f, 8.0f };
+    SDL_RenderFillRect(renderer, &w1);
+    SDL_RenderFillRect(renderer, &w2);
+
+    SDL_SetRenderDrawColor(renderer, 255, 235, 41, 200);
+    SDL_FRect headlight;
+    if (mDirection == 1) {
+        headlight = { (float)mX + 70, baseY + 16, 4.0f, 6.0f };
+    } else {
+        headlight = { (float)mX - 2, baseY + 16, 4.0f, 6.0f };
+    }
+    SDL_RenderFillRect(renderer, &headlight);
+
+    SDL_Color textCol = {0, 0, 0, 255};
+    font.drawText(renderer, "CLIFF", mX + 26, (int)(baseY + 16), 1, textCol);
+}
+
+// ====================================================================
+// TRIỂN KHAI LỚP CGLEAMEYES
+// ====================================================================
+CGLEAMEYES::CGLEAMEYES(int x, int y, int speed, int direction)
+    : CANIMAL(x, y, speed, direction), mArmorGlow(0) {
+    mWidth = 140;
+    mHeight = 80;
+}
+
+CGLEAMEYES::~CGLEAMEYES() {}
+
+void CGLEAMEYES::Move(int limitX1, int limitX2) {
+    mX += mDirection * mSpeed;
+    mArmorGlow = (mArmorGlow + 1) % 8;
+
+    if (mDirection == 1 && mX > limitX2) {
+        mX = limitX1 - mWidth;
+    }
+    else if (mDirection == -1 && mX < limitX1 - mWidth) {
+        mX = limitX2;
+    }
+}
+
+void CGLEAMEYES::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+    float baseY = (float)mY - cameraY;
+    if (mTexture1) {
+        int frameIndex = (std::abs(mX) / 90) % 2;
+        SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
+        if (!activeTex) activeTex = mTexture1;
+
+        float drawW = (float)mWidth * 1.5f;
+        float drawH = (float)mHeight * 1.5f;
+        float drawX = (float)mX - (drawW - (float)mWidth) / 2.0f;
+        float drawY = baseY - (drawH - (float)mHeight) / 2.0f;
+
+        SDL_FRect dstRect = { drawX, drawY, drawW, drawH };
+        SDL_FlipMode flip = (mDirection == -1) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+        SDL_RenderTextureRotated(renderer, activeTex, NULL, &dstRect, 0.0f, NULL, flip);
+        return;
+    }
+
+    SDL_SetRenderDrawColor(renderer, 43, 45, 66, 255);
+    SDL_FRect cargoRect;
+    SDL_SetRenderDrawColor(renderer, 230, 57, 70, 255);
+    SDL_FRect cabinRect;
+    SDL_SetRenderDrawColor(renderer, 241, 250, 238, 255);
+    SDL_FRect windowRect;
+
+    if (mDirection == 1) {
+        cargoRect = { (float)mX, baseY + 4, 60.0f, 32.0f };
+        cabinRect = { (float)mX + 60, baseY + 12, 36.0f, 24.0f };
+        windowRect = { (float)mX + 75, baseY + 16, 12.0f, 10.0f };
+    } else {
+        cabinRect = { (float)mX, baseY + 12, 36.0f, 24.0f };
+        cargoRect = { (float)mX + 36, baseY + 4, 60.0f, 32.0f };
+        windowRect = { (float)mX + 9, baseY + 16, 12.0f, 10.0f };
+    }
+
+    SDL_RenderFillRect(renderer, &cargoRect);
+    SDL_RenderFillRect(renderer, &cabinRect);
+    SDL_RenderFillRect(renderer, &windowRect);
+
+    SDL_SetRenderDrawColor(renderer, 29, 53, 87, 255);
+    SDL_FRect wheel1, wheel2, wheel3;
+    if (mDirection == 1) {
+        wheel1 = { (float)mX + 12, baseY + 34, 14.0f, 10.0f };
+        wheel2 = { (float)mX + 38, baseY + 34, 14.0f, 10.0f };
+        wheel3 = { (float)mX + 72, baseY + 34, 14.0f, 10.0f };
+    } else {
+        wheel1 = { (float)mX + 10, baseY + 34, 14.0f, 10.0f };
+        wheel2 = { (float)mX + 44, baseY + 34, 14.0f, 10.0f };
+        wheel3 = { (float)mX + 70, baseY + 34, 14.0f, 10.0f };
+    }
+    SDL_RenderFillRect(renderer, &wheel1);
+    SDL_RenderFillRect(renderer, &wheel2);
+    SDL_RenderFillRect(renderer, &wheel3);
+
+    SDL_SetRenderDrawColor(renderer, 255, 215, 0, 180);
+    SDL_FRect glow = { (float)mX + (mDirection == 1 ? 108.0f : -4.0f), baseY + 14, 8.0f, 8.0f };
+    SDL_RenderFillRect(renderer, &glow);
+
+    SDL_Color textColor = {255, 255, 255, 255};
+    font.drawText(renderer, "EYES", mX + (mDirection == 1 ? 12 : 48), (int)(baseY + 14), 1, textColor);
 }

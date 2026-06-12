@@ -18,11 +18,9 @@ enum class GameState {
 };
 
 enum class LaneType {
-    ROAD_CAR,
-    FOREST_DINO,
-    REST,
-    FOREST_TRUCK,
-    ROAD_BIRD
+    VEHICLE,
+    MONSTER,
+    REST
 };
 
 struct Lane {
@@ -44,14 +42,14 @@ private:
     SDL_Texture* mSwordTexture;
 
     // Các texture bản đồ & quái vật (SAO theme PNGs)
-    SDL_Texture* mTruckTexture1;
-    SDL_Texture* mTruckTexture2;
-    SDL_Texture* mCarTexture1;
-    SDL_Texture* mCarTexture2;
-    SDL_Texture* mDinoTexture1;
-    SDL_Texture* mDinoTexture2;
-    SDL_Texture* mBirdTexture1;
-    SDL_Texture* mBirdTexture2;
+    SDL_Texture* mCGleameyesTexture1;
+    SDL_Texture* mCGleameyesTexture2;
+    SDL_Texture* mCheathcliffTexture1;
+    SDL_Texture* mCheathcliffTexture2;
+    SDL_Texture* mCillfangTexture1;
+    SDL_Texture* mCillfangTexture2;
+    SDL_Texture* mCicedragonTexture1;
+    SDL_Texture* mCicedragonTexture2;
     SDL_Texture* mBgPlayingTexture;
     SDL_Texture* mSidewalkTopTexture;
     SDL_Texture* mSidewalkBottomTexture;
@@ -64,10 +62,10 @@ private:
     CPEOPLE mPlayer;
 
     // Danh sách các chướng ngại vật (xe/thú) trên các làn đường
-    std::vector<CTRUCK*> mTrucks;
-    std::vector<CCAR*> mCars;
-    std::vector<CDINAUSOR*> mDinos;
-    std::vector<CBIRD*> mBirds;
+    std::vector<CGLEAMEYES*> mGleameyes;
+    std::vector<CHEATHCLIFF*> mCheathcliffs;
+    std::vector<CILLFANG*> mCillfangs;
+    std::vector<CICEDRAGON*> mCicedragons;
 
     // Cấp độ màn chơi hiện tại
     int mStage;
