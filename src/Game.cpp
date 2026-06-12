@@ -340,6 +340,10 @@ void CGAME::update(float deltaTime) {
 }
 
 void CGAME::render() {
+    // Xóa màn hình trước khi vẽ khung hình mới để tránh rác đồ họa (screen trails)
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
+    SDL_RenderClear(mRenderer);
+
     if (mState == GameState::MENU) {
         renderMenu();
     }
@@ -1269,10 +1273,16 @@ void CGAME::resetInfinite() {
 void CGAME::initInfiniteLanes() {
     mLanes.clear();
 
+    // Thêm một làn phụ ở Y = 680 để phủ kín chân màn hình (680 -> 720)
+    Lane bottomFillLane;
+    bottomFillLane.type = LaneType::REST;
+    bottomFillLane.worldY = 680;
+    mLanes.push_back(bottomFillLane);
+
     Lane startLane;
     startLane.type = LaneType::REST;
     startLane.worldY = 600;
-    mLanes.push_back(startLane);
+    mLanes.insert(mLanes.begin(), startLane);
 
     while (mLanes.front().worldY > -mLaneHeight * 3) {
         addLaneAbove();
