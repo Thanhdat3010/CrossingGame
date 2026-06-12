@@ -1,6 +1,6 @@
 # Kế hoạch dự án CrossingGame (cập nhật theo CrossingGame.md)
 
-Ngày tạo: 2026-05-23
+Ngày cập nhật: 2026-06-12 (Sau khi hoàn tất Phase 1 và Tái cấu trúc OOP)
 
 ## 0) Nguồn yêu cầu
 - Tài liệu: CrossingGame.md (Khoa CNTT - OOP, 01/10/2025).
@@ -23,21 +23,27 @@ Ngày tạo: 2026-05-23
 - Game 2D pixel, thư viện GUI có .DLL.
 - Theme/tông màu sáng (không dùng theme tối).
 - Toàn bộ code nằm ở master; khi đủ điều kiện nộp lần 1/2/3 thì tôi sẽ báo để bạn tạo branch nộp.
+- **Quy tắc OOP nghiêm ngặt**: Tên tệp nguồn trùng khớp hoàn toàn với tên Class tương ứng (Phân biệt hoa/thường). Một tệp `.h` và một tệp `.cpp` riêng biệt cho mỗi lớp.
 
 ## 3) Quyết định kỹ thuật (đã chốt)
 - Giáo viên chấp nhận game GUI 2D pixel.
-- Chọn SDL3 và build bằng Visual Studio (MSVC), có .DLL.
+- Chọn SDL3 và build bằng Visual Studio (MSBuild), có .DLL.
 - Giữ logic theo tài liệu, giao diện tổng thể màu sáng.
+- Thiết lập thư mục mã nguồn:
+  - Đầu vào chính: `src/MainProg.cpp`.
+  - Các lớp tiêu đề (.h): `src/include/`.
+  - Các lớp thực thi (.cpp): `src/source/`.
 
 ## 4) Mục tiêu nộp bài (đặt cao hơn yêu cầu)
-### Lần 1 (mục tiêu: menu + 1 màn cơ bản chơi được)
+### Lần 1 (mục tiêu: menu + 1 màn cơ bản chơi được) -> **ĐÃ HOÀN THÀNH**
 - Menu hoàn chỉnh (New Game hoạt động, Load/Settings báo chưa hỗ trợ).
 - Game loop + input + va chạm + win/lose.
-- 1 màn có xe + thú, có reset khi va chạm, có lên cấp 1.
+- 1 màn có xe + thú, có reset khi va chạm, có lên cấp 1 và chế độ Infinite.
+- Tái cấu trúc OOP hoàn chỉnh: chia nhỏ các lớp `CBLUEWING`, `CSKYARMOR`, `CILLFANG`, `CICEDRAGON`, `CHEATHCLIFF`, `CGLEAMEYES` thành các tệp riêng tương ứng.
 - Report: kế hoạch, nghiên cứu, kiến trúc, danh sách asset.
-- Tiêu chí đạt: chơi được 1 màn từ đầu đến cuối, không crash.
+- Tiêu chí đạt: chơi được 1 màn từ đầu đến cuối, không crash, cấu trúc thư mục sạch đẹp.
 
-### Lần 2 (mục tiêu: chơi được đầy đủ)
+### Lần 2 (mục tiêu: chơi được đầy đủ) -> **ĐANG THỰC HIỆN**
 - Lưu/Tải game đúng phím L/T theo yêu cầu.
 - Tạm dừng xe theo thời gian (traffic light/logic dừng khoảng).
 - HUD/thông tin hợp lý, thêm hiệu ứng va chạm, âm thanh thú.
@@ -50,14 +56,14 @@ Ngày tạo: 2026-05-23
 - Tiêu chí đạt: đóng gói đầy đủ DLL, chạy trên máy khác.
 
 ## 5) Work breakdown theo mục tiêu (có kiểm tra)
-1. Chốt hướng kỹ thuật và cấu trúc project -> kiểm tra: thống nhất công nghệ.
-2. Định nghĩa rule & luồng game -> kiểm tra: có spec ngắn (input, win/lose, level, save/load).
-3. Cài đặt nền (loop, input, render, state menu/play/pause) -> kiểm tra: vào được menu và thoát.
-4. Hệ thống đối tượng (CPEOPLE, CVEHICLE, CANIMAL, CGAME) -> kiểm tra: di chuyển + va chạm.
-5. Save/Load -> kiểm tra: lưu file và tải lại đúng trạng thái.
-6. Tạm dừng xe -> kiểm tra: xe dừng lại theo khoảng thời gian.
-7. UI/FX -> kiểm tra: có HUD + hiệu ứng va chạm + âm thanh thú.
-8. Đóng gói -> kiểm tra: src.zip chạy trên máy khác.
+1. Chốt hướng kỹ thuật và cấu trúc project -> kiểm tra: thống nhất công nghệ. **(Xong)**
+2. Định nghĩa rule & luồng game -> kiểm tra: có spec ngắn. **(Xong)**
+3. Cài đặt nền (loop, input, render, state menu/play/pause) -> kiểm tra: vào được menu và thoát. **(Xong)**
+4. Hệ thống đối tượng (CPEOPLE, CVEHICLE, CANIMAL, CGAME cùng các lớp con) -> kiểm tra: di chuyển + va chạm + cấu trúc file OOP. **(Xong)**
+5. Save/Load -> kiểm tra: lưu file và tải lại đúng trạng thái. (Chưa thực hiện)
+6. Tạm dừng xe -> kiểm tra: xe dừng lại theo khoảng thời gian. (Chưa thực hiện)
+7. UI/FX -> kiểm tra: có HUD + hiệu ứng va chạm + âm thanh thú. (Đã có giao diện, thiếu âm thanh)
+8. Đóng gói -> kiểm tra: src.zip chạy trên máy khác. (Đã tạo file zip thử nghiệm trên branch `dot-1`)
 
 ## 6) Quy trình nộp bài
 - Mỗi lần nộp: 1 file .txt chứa link Google Drive/OneDrive.
