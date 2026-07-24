@@ -111,6 +111,7 @@ xcopy /Y /S /E /I /D "$(ProjectDir)assets" "$(TargetDir)assets"</Command>
     <ClCompile Include="src\source\CILLFANG.cpp" />
     <ClCompile Include="src\source\CPEOPLE.cpp" />
     <ClCompile Include="src\source\CSKYARMOR.cpp" />
+    <ClCompile Include="src\source\CTRAFFICLIGHT.cpp" />
     <ClCompile Include="src\source\CVEHICLE.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -124,6 +125,7 @@ xcopy /Y /S /E /I /D "$(ProjectDir)assets" "$(TargetDir)assets"</Command>
     <ClInclude Include="src\include\CILLFANG.h" />
     <ClInclude Include="src\include\CPEOPLE.h" />
     <ClInclude Include="src\include\CSKYARMOR.h" />
+    <ClInclude Include="src\include\CTRAFFICLIGHT.h" />
     <ClInclude Include="src\include\CVEHICLE.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -87,3 +87,7 @@ void CILLFANG::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     SDL_Color textCol = {255, 255, 255, 255};
     font.drawText(renderer, "FANG", mX + (mDirection == 1 ? 18 : 22), (int)(baseY + 18), 1, textCol);
 }
+
+void CILLFANG::Tell(MIX_Mixer* mixer, MIX_Audio* sound) {
+    CANIMAL::Tell(mixer, sound);
+}

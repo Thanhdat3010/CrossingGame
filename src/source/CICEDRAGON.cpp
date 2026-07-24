@@ -81,5 +81,9 @@ void CICEDRAGON::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     SDL_RenderFillRect(renderer, &wing);
 
     SDL_Color textCol = {255, 255, 255, 255};
-    font.drawText(renderer, "ICE", mX + (mDirection == 1 ? 13 : 21), (int)(baseY + 14), 1, textCol);
+    font.drawText(renderer, "ICE", mX + 22, (int)(baseY + 18), 1, textCol);
+}
+
+void CICEDRAGON::Tell(MIX_Mixer* mixer, MIX_Audio* sound) {
+    CANIMAL::Tell(mixer, sound);
 }

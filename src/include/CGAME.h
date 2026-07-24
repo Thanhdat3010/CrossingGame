@@ -2,7 +2,11 @@
 #define CGAME_H
 
 #include <SDL3/SDL.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <atomic>
 #include "CFont.h"
 #include "CPEOPLE.h"
 #include "CVEHICLE.h"
@@ -13,6 +17,7 @@
 #include "CICEDRAGON.h"
 #include "CHEATHCLIFF.h"
 #include "CGLEAMEYES.h"
+#include "CTRAFFICLIGHT.h"
 
 enum class GameState {
     MENU,
@@ -69,6 +74,7 @@ private:
     std::vector<CICEDRAGON*> mCicedragons;
     std::vector<CBLUEWING*> mBluewings;
     std::vector<CSKYARMOR*> mSkyarmors;
+    std::vector<CTRAFFICLIGHT> mTrafficLights;
 
     int mStage;
     bool mIsInfinityMode;
@@ -86,6 +92,25 @@ private:
     bool mShowMenuWarning;
     float mWarningTimer;
     float mMenuAnimTimer;
+
+    MIX_Mixer* mMixer;
+    MIX_Track* mBgmTrack;
+    MIX_Audio* mBgmMenu;
+    MIX_Audio* mBgmPlaying;
+    MIX_Audio* mSfxHit;
+    MIX_Audio* mSfxStep;
+    MIX_Audio* mSfxWin;
+    MIX_Audio* mSfxCillfang;
+    MIX_Audio* mSfxCicedragon;
+    MIX_Audio* mSfxCheathcliff;
+    MIX_Audio* mSfxCGleameyes;
+
+    float mFlashTimer;
+
+    std::thread mPhysicsThread;
+    mutable std::mutex mGameMutex;
+    std::atomic<bool> mIsThreadRunning;
+    void physicsWorkerFunc();
 
     void handleInput();
     void update(float deltaTime);

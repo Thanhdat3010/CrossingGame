@@ -51,20 +51,46 @@ namespace {
     }
 }
 
+namespace {
+    MIX_Audio* loadAudioFlexible(MIX_Mixer* mixer, const std::string& basePath) {
+        if (!mixer) return nullptr;
+        const char* exts[] = { ".mp3", ".wav", ".ogg" };
+        for (const char* ext : exts) {
+            std::string fullPath = basePath + ext;
+            MIX_Audio* a = MIX_LoadAudio(mixer, fullPath.c_str(), true);
+            if (a) return a;
+        }
+        return nullptr;
+    }
+
+    void playBGM(MIX_Track* track, MIX_Audio* audio) {
+        if (track && audio) {
+            MIX_SetTrackAudio(track, audio);
+            MIX_SetTrackLoops(track, -1);
+            MIX_PlayTrack(track, 0);
+        }
+    }
+}
+
 CGAME::CGAME() 
     : mWindow(nullptr), mRenderer(nullptr), mIsRunning(false), mState(GameState::MENU),
       mSwordTexture(nullptr), 
-    mCGleameyesTexture1(nullptr), mCGleameyesTexture2(nullptr),
-    mCheathcliffTexture1(nullptr), mCheathcliffTexture2(nullptr),
-    mCillfangTexture1(nullptr), mCillfangTexture2(nullptr),
-    mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
+      mCGleameyesTexture1(nullptr), mCGleameyesTexture2(nullptr),
+      mCheathcliffTexture1(nullptr), mCheathcliffTexture2(nullptr),
+      mCillfangTexture1(nullptr), mCillfangTexture2(nullptr),
+      mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
       mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
-    mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
-    mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
-      mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f) {}
+      mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
+      mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
+      mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
+      mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr), mBgmPlaying(nullptr),
+      mSfxHit(nullptr), mSfxStep(nullptr), mSfxWin(nullptr),
+      mSfxCillfang(nullptr), mSfxCicedragon(nullptr),
+      mSfxCheathcliff(nullptr), mSfxCGleameyes(nullptr),
+      mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
 CGAME::~CGAME() {
     exitGame();
@@ -83,6 +109,8 @@ bool CGAME::init(const char* title, int width, int height) {
         SDL_Quit();
         return false;
     }
+
+    mMixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
 
     // 3. Tạo cửa sổ game (Window - Fixed Size)
     mWindow = SDL_CreateWindow(title, width, height, 0);
@@ -113,45 +141,65 @@ bool CGAME::init(const char* title, int width, int height) {
         return false;
     }
 
+    // 6. Load âm thanh từ thư mục assets/audio/ (.mp3, .wav, .ogg)
+    if (mMixer) {
+        mBgmTrack = MIX_CreateTrack(mMixer);
+        mBgmMenu = loadAudioFlexible(mMixer, "assets/audio/bgm_menu");
+        mBgmPlaying = loadAudioFlexible(mMixer, "assets/audio/bgm_playing");
+        mSfxHit = loadAudioFlexible(mMixer, "assets/audio/sfx_hit");
+        mSfxStep = loadAudioFlexible(mMixer, "assets/audio/sfx_step");
+        mSfxWin = loadAudioFlexible(mMixer, "assets/audio/sfx_win");
+        mSfxCillfang = loadAudioFlexible(mMixer, "assets/audio/sfx_cillfang");
+        mSfxCicedragon = loadAudioFlexible(mMixer, "assets/audio/sfx_cicedragon");
+        mSfxCheathcliff = loadAudioFlexible(mMixer, "assets/audio/sfx_cheathcliff");
+        mSfxCGleameyes = loadAudioFlexible(mMixer, "assets/audio/sfx_cgleameyes");
+
+        if (mBgmMenu && mBgmTrack) {
+            playBGM(mBgmTrack, mBgmMenu);
+        }
+    }
+
     // 6. Load ảnh hai thanh kiếm
-    mSwordTexture = IMG_LoadTexture(mRenderer, "assets/swords.png");
+    mSwordTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/swords.png");
     if (!mSwordTexture) {
-        std::cerr << "Failed to load assets/swords.png! Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Failed to load assets/images/ui/swords.png! Error: " << SDL_GetError() << std::endl;
     }
 
     // Load các ảnh PNG tùy chọn cho bản đồ & quái vật (SAO theme)
     // 1. CGLEAMEYES
-    mCGleameyesTexture1 = IMG_LoadTexture(mRenderer, "assets/cgleameyes1.png");
-    mCGleameyesTexture2 = IMG_LoadTexture(mRenderer, "assets/cgleameyes2.png");
+    mCGleameyesTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cgleameyes1.png");
+    mCGleameyesTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cgleameyes2.png");
     if (!mCGleameyesTexture2) mCGleameyesTexture2 = mCGleameyesTexture1;
 
     // 2. CHEATHCLIFF
-    mCheathcliffTexture1 = IMG_LoadTexture(mRenderer, "assets/cheathcliff1.png");
-    mCheathcliffTexture2 = IMG_LoadTexture(mRenderer, "assets/cheathcliff2.png");
+    mCheathcliffTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cheathcliff1.png");
+    mCheathcliffTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cheathcliff2.png");
     if (!mCheathcliffTexture2) mCheathcliffTexture2 = mCheathcliffTexture1;
 
     // 3. CILLFANG
-    mCillfangTexture1 = IMG_LoadTexture(mRenderer, "assets/cillfang1.png");
-    mCillfangTexture2 = IMG_LoadTexture(mRenderer, "assets/cillfang2.png");
+    mCillfangTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cillfang1.png");
+    mCillfangTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cillfang2.png");
     if (!mCillfangTexture2) mCillfangTexture2 = mCillfangTexture1;
 
     // 4. CICEDRAGON
-    mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/cicedragon1.png");
-    mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/cicedragon2.png");
+    mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon1.png");
+    mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon2.png");
     if (!mCicedragonTexture2) mCicedragonTexture2 = mCicedragonTexture1;
-    mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/bg_playing.png");
-    mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_top.png");
-    mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/sidewalk_bottom.png");
-    mLaneRestTexture = IMG_LoadTexture(mRenderer, "assets/lane_rest.png");
-    mLaneForestTexture = IMG_LoadTexture(mRenderer, "assets/lane_forest.png");
-    mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/lane_road.png");
-    mCbluewingTexture = IMG_LoadTexture(mRenderer, "assets/cbluewing.png");
-    mCskyarmorTexture = IMG_LoadTexture(mRenderer, "assets/cskyarmor.png");
+    mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_playing.png");
+    mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_top.png");
+    mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_bottom.png");
+    mLaneRestTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_rest.png");
+    mLaneForestTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_forest.png");
+    mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_road.png");
+    mCbluewingTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cbluewing.png");
+    mCskyarmorTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cskyarmor.png");
 
     // Load ảnh các nhân vật Kirito & Asuna
     mPlayer.loadTextures(mRenderer);
 
     mIsRunning = true;
+    mIsThreadRunning = true;
+    mPhysicsThread = std::thread(&CGAME::physicsWorkerFunc, this);
     mState = GameState::MENU; // Bắt đầu ở trạng thái Menu chính
 
     srand((unsigned)SDL_GetTicks());
@@ -240,6 +288,9 @@ void CGAME::handleInput() {
                     }
                     resetGame();
                     mState = GameState::PLAYING; // Vào chơi!
+                    if (mBgmPlaying && mBgmTrack) {
+                        playBGM(mBgmTrack, mBgmPlaying);
+                    }
                 }
                 else if (key == SDLK_ESCAPE) {
                     mState = GameState::CHAR_SELECT; // Quay lại chọn nhân vật
@@ -252,21 +303,32 @@ void CGAME::handleInput() {
                     topLimit = (int)mCameraY + 40;
                     bottomLimit = (int)mCameraY + 600;
                 }
+
+                bool moved = false;
                 // Di chuyển nhân vật bằng W/A/S/D hoặc các phím mũi tên
                 if (key == SDLK_W || key == SDLK_UP) {
                     mPlayer.Up(topLimit);
+                    moved = true;
                 }
                 else if (key == SDLK_S || key == SDLK_DOWN) {
                     mPlayer.Down(bottomLimit);
+                    moved = true;
                 }
                 else if (key == SDLK_A || key == SDLK_LEFT) {
                     mPlayer.Left(0); // Biên trái
+                    moved = true;
                 }
                 else if (key == SDLK_D || key == SDLK_RIGHT) {
                     mPlayer.Right(1280 - mPlayer.getWidth()); // Biên phải
+                    moved = true;
                 }
                 else if (key == SDLK_ESCAPE) {
                     mState = GameState::MENU; // Nhấn ESC quay lại Menu
+                    if (mBgmMenu && mBgmTrack) playBGM(mBgmTrack, mBgmMenu);
+                }
+
+                if (moved && mMixer && mSfxStep) {
+                    MIX_PlayAudio(mMixer, mSfxStep);
                 }
             }
             else if (mState == GameState::GAMEOVER) {
@@ -275,18 +337,109 @@ void CGAME::handleInput() {
                     if (mPlayer.isDead()) {
                         resetGame();
                         mState = GameState::PLAYING;
+                        if (mBgmPlaying && mBgmTrack) playBGM(mBgmTrack, mBgmPlaying);
                     } else {
                         // Nếu thắng chiến dịch (không chết), hồi sinh chơi lại từ đầu
                         mStage = 1;
                         resetGame();
                         mState = GameState::PLAYING;
+                        if (mBgmPlaying && mBgmTrack) playBGM(mBgmTrack, mBgmPlaying);
                     }
                 }
                 else if (key == SDLK_ESCAPE || key == SDLK_N) {
                     mState = GameState::MENU;
+                    if (mBgmMenu && mBgmTrack) playBGM(mBgmTrack, mBgmMenu);
                 }
             }
         }
+    }
+}
+
+void CGAME::physicsWorkerFunc() {
+    Uint64 lastTick = SDL_GetTicks();
+    while (mIsThreadRunning) {
+        Uint64 currentTick = SDL_GetTicks();
+        float deltaTime = (currentTick - lastTick) / 1000.0f;
+        if (deltaTime > 0.1f) deltaTime = 0.1f;
+        lastTick = currentTick;
+
+        if (mState == GameState::PLAYING) {
+            std::lock_guard<std::mutex> lock(mGameMutex);
+
+            // 1. Cập nhật Đèn giao thông
+            for (auto& light : mTrafficLights) {
+                light.update(deltaTime);
+            }
+
+            if (mIsInfinityMode) {
+                updateInfinite(deltaTime);
+            } else {
+                mPlayer.update(deltaTime);
+
+                bool road1Red = false;
+                bool road2Red = false;
+                for (const auto& light : mTrafficLights) {
+                    if (light.getLaneY() == 120 && light.isRed()) road1Red = true;
+                    if (light.getLaneY() == 440 && light.isRed()) road2Red = true;
+                }
+
+                // Di chuyển quái vật
+                moveObstacleList(mGleameyes, 0, 1280);
+                moveObstacleList(mCheathcliffs, 0, 1280);
+                moveObstacleList(mCillfangs, 0, 1280);
+                moveObstacleList(mCicedragons, 0, 1280);
+
+                // Di chuyển xe nếu đèn không đỏ
+                for (auto bw : mBluewings) {
+                    if (bw->getY() == 120 && road1Red) continue;
+                    if (bw->getY() == 440 && road2Red) continue;
+                    bw->Move(0, 1280);
+                }
+                for (auto sa : mSkyarmors) {
+                    if (sa->getY() == 120 && road1Red) continue;
+                    if (sa->getY() == 440 && road2Red) continue;
+                    sa->Move(0, 1280);
+                }
+
+                // Tiếng quái thú gầm khi ở gần người chơi (< 150px)
+                auto checkTell = [&](auto& list, MIX_Audio* sound) {
+                    for (auto item : list) {
+                        float dx = (float)(item->getX() - mPlayer.getX());
+                        float dy = (float)(item->getY() - mPlayer.getY());
+                        if (std::sqrt(dx * dx + dy * dy) < 150.0f) {
+                            static Uint64 lastTellTicks = 0;
+                            if (SDL_GetTicks() - lastTellTicks > 2500) {
+                                item->Tell(mMixer, sound);
+                                lastTellTicks = SDL_GetTicks();
+                            }
+                        }
+                    }
+                };
+
+                checkTell(mCillfangs, mSfxCillfang);
+                checkTell(mCicedragons, mSfxCicedragon);
+                checkTell(mCheathcliffs, mSfxCheathcliff);
+                checkTell(mGleameyes, mSfxCGleameyes);
+
+                if (mPlayer.isFinish()) {
+                    mState = GameState::GAMEOVER;
+                    if (mMixer && mSfxWin) MIX_PlayAudio(mMixer, mSfxWin);
+                }
+                else if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
+                    hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
+                    hitPlayerAgainstList(mPlayer, mCillfangs) ||
+                    hitPlayerAgainstList(mPlayer, mCicedragons) ||
+                    hitPlayerAgainstList(mPlayer, mBluewings) ||
+                    hitPlayerAgainstList(mPlayer, mSkyarmors)) {
+                    mPlayer.setDead(true);
+                    mState = GameState::GAMEOVER;
+                    mFlashTimer = 0.5f;
+                    if (mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
+                }
+            }
+        }
+
+        SDL_Delay(10); // Tick rate 100Hz
     }
 }
 
@@ -302,40 +455,9 @@ void CGAME::update(float deltaTime) {
         }
     }
 
-    // Logic khi chơi game
-    if (mState == GameState::PLAYING) {
-        if (mIsInfinityMode) {
-            updateInfinite(deltaTime);
-            return;
-        }
-        mPlayer.update(deltaTime); // Cập nhật hoạt ảnh trượt và nhấp nhô của người chơi
-
-        // 1. Di chuyển toàn bộ xe cộ và động vật
-        moveObstacleList(mGleameyes, 0, 1280);
-        moveObstacleList(mCheathcliffs, 0, 1280);
-        moveObstacleList(mCillfangs, 0, 1280);
-        moveObstacleList(mCicedragons, 0, 1280);
-        moveObstacleList(mBluewings, 0, 1280);
-        moveObstacleList(mSkyarmors, 0, 1280);
-
-        // 2. Kiểm tra nếu người chơi băng qua đường thành công (về đích)
-        // Check trước khi kiểm tra va chạm để tránh chết oan khi đã chạm chân vào vỉa hè an toàn.
-        if (mPlayer.isFinish()) {
-            mState = GameState::GAMEOVER; // Tutorial hoàn thành
-            return;
-        }
-
-        // 3. Kiểm tra va chạm với nhân vật (AABB)
-        if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
-            hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
-            hitPlayerAgainstList(mPlayer, mCillfangs) ||
-            hitPlayerAgainstList(mPlayer, mCicedragons) ||
-            hitPlayerAgainstList(mPlayer, mBluewings) ||
-            hitPlayerAgainstList(mPlayer, mSkyarmors)) {
-            mPlayer.setDead(true);
-            mState = GameState::GAMEOVER;
-            return;
-        }
+    if (mFlashTimer > 0.0f) {
+        mFlashTimer -= deltaTime;
+        if (mFlashTimer < 0.0f) mFlashTimer = 0.0f;
     }
 }
 
@@ -1064,8 +1186,19 @@ void CGAME::renderPlaying() {
     for (auto sa : mSkyarmors) {
         sa->draw(mRenderer, mFont, 0.0f);
     }
+    for (auto& tl : mTrafficLights) {
+        tl.draw(mRenderer, mFont, 0.0f);
+    }
 
     mPlayer.draw(mRenderer, mFont, 0.0f);
+
+    if (mFlashTimer > 0.0f) {
+        SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+        Uint8 alpha = (Uint8)((mFlashTimer / 0.5f) * 180.0f);
+        SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, alpha);
+        SDL_FRect flashRect = { 0.0f, 0.0f, 1280.0f, 720.0f };
+        SDL_RenderFillRect(mRenderer, &flashRect);
+    }
 
     SDL_Color hudColor = {255, 255, 255, 255};
     SDL_Color cyanGlow = {80, 200, 255, 255};
@@ -1107,6 +1240,14 @@ void CGAME::resetTutorial() {
 
     mPlayer.resetPosition();
     clearObstacles();
+
+    mTrafficLights.clear();
+    CTRAFFICLIGHT t1(120, 3.0f, 5.0f);
+    t1.initTextures(mRenderer);
+    CTRAFFICLIGHT t2(440, 3.0f, 5.0f);
+    t2.initTextures(mRenderer);
+    mTrafficLights.push_back(t1);
+    mTrafficLights.push_back(t2);
 
     auto spawnLane = [&](LaneType laneType, int laneY, int laneCount, int direction) {
         int spacing = 1280 / laneCount;
@@ -1338,7 +1479,25 @@ void CGAME::clearObstacles() {
 
 void CGAME::exitGame() {
     mIsRunning = false;
+    mIsThreadRunning = false;
+
+    if (mPhysicsThread.joinable()) {
+        mPhysicsThread.join();
+    }
+
     clearObstacles();
+
+    if (mBgmTrack) { MIX_DestroyTrack(mBgmTrack); mBgmTrack = nullptr; }
+    if (mBgmMenu) { MIX_DestroyAudio(mBgmMenu); mBgmMenu = nullptr; }
+    if (mBgmPlaying) { MIX_DestroyAudio(mBgmPlaying); mBgmPlaying = nullptr; }
+    if (mSfxHit) { MIX_DestroyAudio(mSfxHit); mSfxHit = nullptr; }
+    if (mSfxStep) { MIX_DestroyAudio(mSfxStep); mSfxStep = nullptr; }
+    if (mSfxWin) { MIX_DestroyAudio(mSfxWin); mSfxWin = nullptr; }
+    if (mSfxCillfang) { MIX_DestroyAudio(mSfxCillfang); mSfxCillfang = nullptr; }
+    if (mSfxCicedragon) { MIX_DestroyAudio(mSfxCicedragon); mSfxCicedragon = nullptr; }
+    if (mSfxCheathcliff) { MIX_DestroyAudio(mSfxCheathcliff); mSfxCheathcliff = nullptr; }
+    if (mSfxCGleameyes) { MIX_DestroyAudio(mSfxCGleameyes); mSfxCGleameyes = nullptr; }
+    if (mMixer) { MIX_DestroyMixer(mMixer); mMixer = nullptr; }
 
     if (mCGleameyesTexture1) { SDL_DestroyTexture(mCGleameyesTexture1); mCGleameyesTexture1 = nullptr; }
     if (mCGleameyesTexture2) { SDL_DestroyTexture(mCGleameyesTexture2); mCGleameyesTexture2 = nullptr; }

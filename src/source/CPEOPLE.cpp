@@ -99,14 +99,14 @@ void CPEOPLE::setCharacter(CharacterType type) {
 void CPEOPLE::loadTextures(SDL_Renderer* renderer) {
     if (!renderer) return;
 
-    mKiritoTexture = IMG_LoadTexture(renderer, "assets/kirito.png");
+    mKiritoTexture = IMG_LoadTexture(renderer, "assets/images/characters/kirito.png");
     if (!mKiritoTexture) {
-        SDL_Log("Chua co assets/kirito.png, game se su dung che do fallback ve chu K pixel.");
+        SDL_Log("Chua co assets/images/characters/kirito.png, game se su dung che do fallback ve chu K pixel.");
     }
 
-    mAsunaTexture = IMG_LoadTexture(renderer, "assets/asuna.png");
+    mAsunaTexture = IMG_LoadTexture(renderer, "assets/images/characters/asuna.png");
     if (!mAsunaTexture) {
-        SDL_Log("Chua co assets/asuna.png, game se su dung che do fallback ve chu A pixel.");
+        SDL_Log("Chua co assets/images/characters/asuna.png, game se su dung che do fallback ve chu A pixel.");
     }
 }
 

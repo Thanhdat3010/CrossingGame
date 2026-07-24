@@ -21,6 +21,7 @@ public:
 
     virtual void Move(int limitX1, int limitX2) = 0;
     virtual void draw(SDL_Renderer* renderer, CFont& font, float cameraY) = 0;
+    virtual void Tell(struct MIX_Mixer* mixer = nullptr, struct MIX_Audio* sound = nullptr);
 
     int getX() const { return mX; }
     int getY() const { return mY; }
