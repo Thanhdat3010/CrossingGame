@@ -87,7 +87,7 @@ CGAME::CGAME()
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr), mBgmPlaying(nullptr),
-      mSfxHit(nullptr), mSfxStep(nullptr), mSfxWin(nullptr),
+      mSfxHit(nullptr), mSfxWin(nullptr),
       mSfxCillfang(nullptr), mSfxCicedragon(nullptr),
       mSfxCheathcliff(nullptr), mSfxCGleameyes(nullptr),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
@@ -147,7 +147,6 @@ bool CGAME::init(const char* title, int width, int height) {
         mBgmMenu = loadAudioFlexible(mMixer, "assets/audio/bgm_menu");
         mBgmPlaying = loadAudioFlexible(mMixer, "assets/audio/bgm_playing");
         mSfxHit = loadAudioFlexible(mMixer, "assets/audio/sfx_hit");
-        mSfxStep = loadAudioFlexible(mMixer, "assets/audio/sfx_step");
         mSfxWin = loadAudioFlexible(mMixer, "assets/audio/sfx_win");
         mSfxCillfang = loadAudioFlexible(mMixer, "assets/audio/sfx_cillfang");
         mSfxCicedragon = loadAudioFlexible(mMixer, "assets/audio/sfx_cicedragon");
@@ -325,10 +324,6 @@ void CGAME::handleInput() {
                 else if (key == SDLK_ESCAPE) {
                     mState = GameState::MENU; // Nhấn ESC quay lại Menu
                     if (mBgmMenu && mBgmTrack) playBGM(mBgmTrack, mBgmMenu);
-                }
-
-                if (moved && mMixer && mSfxStep) {
-                    MIX_PlayAudio(mMixer, mSfxStep);
                 }
             }
             else if (mState == GameState::GAMEOVER) {
@@ -1491,7 +1486,6 @@ void CGAME::exitGame() {
     if (mBgmMenu) { MIX_DestroyAudio(mBgmMenu); mBgmMenu = nullptr; }
     if (mBgmPlaying) { MIX_DestroyAudio(mBgmPlaying); mBgmPlaying = nullptr; }
     if (mSfxHit) { MIX_DestroyAudio(mSfxHit); mSfxHit = nullptr; }
-    if (mSfxStep) { MIX_DestroyAudio(mSfxStep); mSfxStep = nullptr; }
     if (mSfxWin) { MIX_DestroyAudio(mSfxWin); mSfxWin = nullptr; }
     if (mSfxCillfang) { MIX_DestroyAudio(mSfxCillfang); mSfxCillfang = nullptr; }
     if (mSfxCicedragon) { MIX_DestroyAudio(mSfxCicedragon); mSfxCicedragon = nullptr; }

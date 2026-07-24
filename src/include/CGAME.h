@@ -98,7 +98,6 @@ private:
     MIX_Audio* mBgmMenu;
     MIX_Audio* mBgmPlaying;
     MIX_Audio* mSfxHit;
-    MIX_Audio* mSfxStep;
     MIX_Audio* mSfxWin;
     MIX_Audio* mSfxCillfang;
     MIX_Audio* mSfxCicedragon;
