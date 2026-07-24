@@ -84,10 +84,11 @@ CGAME::CGAME()
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
-      mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
+      mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
+      mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
-      mSfxHit(nullptr),
+      mSfxHit(nullptr), mAudioMuted(false),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
 CGAME::~CGAME() {
@@ -244,9 +245,11 @@ void CGAME::handleInput() {
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
                     if (mSelectedMenuOption == 0) {
                         startGame();
-                    } else {
+                    } else if (mSelectedMenuOption == 1) {
                         mShowMenuWarning = true;
                         mWarningTimer = 2.5f;
+                    } else if (mSelectedMenuOption == 2) {
+                        mState = GameState::SETTINGS;
                     }
                 }
             }
@@ -279,13 +282,21 @@ void CGAME::handleInput() {
                         mIsInfinityMode = true; // Infinite
                     }
                     resetGame();
-                    mState = GameState::PLAYING; // Vào chơi!
-                    if (mBgmTrack) {
-                        MIX_StopTrack(mBgmTrack, 0);
-                    }
+                    mState = GameState::PLAYING;
                 }
                 else if (key == SDLK_ESCAPE) {
-                    mState = GameState::CHAR_SELECT; // Quay lại chọn nhân vật
+                    mState = GameState::CHAR_SELECT;
+                }
+            }
+            else if (mState == GameState::SETTINGS) {
+                if (key == SDLK_W || key == SDLK_UP || key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedSettingsOption = 0;
+                }
+                else if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_A || key == SDLK_D || key == SDLK_LEFT || key == SDLK_RIGHT) {
+                    toggleMusic();
+                }
+                else if (key == SDLK_ESCAPE) {
+                    mState = GameState::MENU;
                 }
             }
             else if (mState == GameState::PLAYING) {
@@ -315,8 +326,7 @@ void CGAME::handleInput() {
                     moved = true;
                 }
                 else if (key == SDLK_ESCAPE) {
-                    mState = GameState::MENU; // Nhấn ESC quay lại Menu
-                    if (mBgmMenu && mBgmTrack) playBGM(mBgmTrack, mBgmMenu);
+                    mState = GameState::MENU;
                 }
             }
             else if (mState == GameState::GAMEOVER) {
@@ -325,18 +335,14 @@ void CGAME::handleInput() {
                     if (mPlayer.isDead()) {
                         resetGame();
                         mState = GameState::PLAYING;
-                        if (mBgmTrack) MIX_StopTrack(mBgmTrack, 0);
                     } else {
-                        // Nếu thắng chiến dịch (không chết), hồi sinh chơi lại từ đầu
                         mStage = 1;
                         resetGame();
                         mState = GameState::PLAYING;
-                        if (mBgmTrack) MIX_StopTrack(mBgmTrack, 0);
                     }
                 }
                 else if (key == SDLK_ESCAPE || key == SDLK_N) {
                     mState = GameState::MENU;
-                    if (mBgmMenu && mBgmTrack) playBGM(mBgmTrack, mBgmMenu);
                 }
             }
         }
@@ -442,6 +448,9 @@ void CGAME::render() {
     else if (mState == GameState::STAGE_SELECT) {
         renderStageSelect();
     }
+    else if (mState == GameState::SETTINGS) {
+        renderSettings();
+    }
     else if (mState == GameState::PLAYING || mState == GameState::GAMEOVER) {
         renderPlaying();
 
@@ -470,7 +479,7 @@ void CGAME::render() {
                 SDL_Color goldColor = {255, 215, 0, 255};
                 mFont.drawTextCentered(mRenderer, "YOU DIED", 240, 5, goldColor);
                 if (mIsInfinityMode) {
-                    mFont.drawTextCentered(mRenderer, "INFINITE LV: " + std::to_string(mInfiniteLevel), 320, 2, whiteColor);
+                    mFont.drawTextCentered(mRenderer, "SCORE: " + std::to_string(mScore), 320, 2, whiteColor);
                 } else {
                     mFont.drawTextCentered(mRenderer, "STAGE REACHED: " + std::to_string(mStage), 320, 2, whiteColor);
                 }
@@ -806,6 +815,63 @@ void CGAME::renderStageSelect() {
     mFont.drawTextCentered(mRenderer, "USE 'W'/'S' OR 'UP'/'DOWN' TO CHOOSE  -  ENTER TO ENTER THE QUEST", 635, 1, guideColor);
 }
 
+void CGAME::toggleMusic() {
+    mAudioMuted = !mAudioMuted;
+    if (mAudioMuted) {
+        if (mBgmTrack) MIX_PauseTrack(mBgmTrack);
+    } else {
+        if (mBgmTrack) MIX_ResumeTrack(mBgmTrack);
+    }
+}
+
+void CGAME::renderSettings() {
+    renderMenuBackground();
+
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "SETTINGS", 98, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "SETTINGS", 96, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "AUDIO & SOUND OPTIONS", 146, 2, subtitleColor);
+
+    float panelX = 240.0f, panelY = 220.0f;
+    float panelW = 800.0f, panelH = 380.0f;
+
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 160);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    std::string musicStatus = mAudioMuted ? "MUSIC BGM: [ OFF ]" : "MUSIC BGM: [ ON ]";
+    SDL_Color selectColor = {10, 95, 75, 255};
+
+    int yPos = 350;
+    SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+    SDL_FRect highlight = { panelX + 20, (float)yPos - 15, panelW - 40, 60.0f };
+    SDL_RenderFillRect(mRenderer, &highlight);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+    SDL_FRect hlBorder = { panelX + 20, (float)yPos - 15, 4.0f, 60.0f };
+    SDL_RenderFillRect(mRenderer, &hlBorder);
+
+    float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+    mFont.drawText(mRenderer, ">", (int)(panelX + 50 + arrowOffset), yPos, 3, selectColor);
+    mFont.drawText(mRenderer, musicStatus, (int)(panelX + 90), yPos, 3, selectColor);
+
+    SDL_Color guideColor = {255, 255, 255, 200};
+    mFont.drawTextCentered(mRenderer, "ENTER / A / D / SPACE TO TOGGLE MUSIC  -  ESC TO RETURN", 635, 1, guideColor);
+}
+
 void CGAME::renderPlaying() {
     if (mIsInfinityMode) {
         auto tileTex = [&](SDL_Texture* tex, float laneY, float laneW, float laneH) {
@@ -896,7 +962,7 @@ void CGAME::renderPlaying() {
         SDL_Color hudColor = {255, 255, 255, 255};
         SDL_Color cyanGlow = {80, 200, 255, 255};
         SDL_Color shadow = {0, 0, 0, 180};
-        std::string hudStageText = "INFINITE LV " + std::to_string(mInfiniteLevel);
+        std::string hudStageText = "SCORE: " + std::to_string(mScore);
 
         mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
         mFont.drawText(mRenderer, hudStageText, 20, 24, 2, cyanGlow);
@@ -1178,8 +1244,11 @@ void CGAME::resetInfinite() {
     mInfiniteLevel = 1;
     mCameraY = 0.0f;
     mLanePatternIndex = 0;
+    mScore = 0;
 
     mPlayer.resetPosition();
+    mMaxReachedY = mPlayer.getY();
+
     clearObstacles();
     mTrafficLights.clear();
     initInfiniteLanes();
@@ -1337,6 +1406,15 @@ void CGAME::updateInfinite(float deltaTime) {
     int newLevel = 1 + (int)((-mCameraY) / (mLaneHeight * 6));
     if (newLevel > mInfiniteLevel) {
         mInfiniteLevel = newLevel;
+    }
+
+    if (mPlayer.getY() < mMaxReachedY) {
+        int diff = mMaxReachedY - mPlayer.getY();
+        int passedLanes = diff / mLaneHeight;
+        if (passedLanes > 0) {
+            mScore += passedLanes;
+            mMaxReachedY -= passedLanes * mLaneHeight;
+        }
     }
 
     while (!mLanes.empty() && mLanes.front().worldY > (int)mCameraY - mLaneHeight * 2) {

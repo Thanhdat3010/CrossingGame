@@ -23,6 +23,7 @@ enum class GameState {
     MENU,
     CHAR_SELECT,
     STAGE_SELECT,
+    SETTINGS,
     PLAYING,
     PAUSED,
     GAMEOVER
@@ -89,6 +90,10 @@ private:
     int mSelectedMenuOption;
     int mSelectedCharOption;
     int mSelectedStageOption;
+    int mSelectedSettingsOption;
+
+    int mScore;
+    int mMaxReachedY;
 
     bool mShowMenuWarning;
     float mWarningTimer;
@@ -98,6 +103,7 @@ private:
     MIX_Track* mBgmTrack;
     MIX_Audio* mBgmMenu;
     MIX_Audio* mSfxHit;
+    bool mAudioMuted;
 
     float mFlashTimer;
 
@@ -114,7 +120,9 @@ private:
     void renderMenu();
     void renderCharSelect();
     void renderStageSelect();
+    void renderSettings();
     void renderPlaying();
+    void toggleMusic();
 
     void clearObstacles();
 
