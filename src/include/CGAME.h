@@ -57,6 +57,7 @@ private:
     SDL_Texture* mCillfangTexture2;
     SDL_Texture* mCicedragonTexture1;
     SDL_Texture* mCicedragonTexture2;
+    SDL_Texture* mBgMenuTexture;
     SDL_Texture* mBgPlayingTexture;
     SDL_Texture* mSidewalkTopTexture;
     SDL_Texture* mSidewalkBottomTexture;
@@ -96,13 +97,7 @@ private:
     MIX_Mixer* mMixer;
     MIX_Track* mBgmTrack;
     MIX_Audio* mBgmMenu;
-    MIX_Audio* mBgmPlaying;
     MIX_Audio* mSfxHit;
-    MIX_Audio* mSfxWin;
-    MIX_Audio* mSfxCillfang;
-    MIX_Audio* mSfxCicedragon;
-    MIX_Audio* mSfxCheathcliff;
-    MIX_Audio* mSfxCGleameyes;
 
     float mFlashTimer;
 
@@ -115,6 +110,7 @@ private:
     void update(float deltaTime);
     void render();
 
+    void renderMenuBackground();
     void renderMenu();
     void renderCharSelect();
     void renderStageSelect();

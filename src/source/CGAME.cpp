@@ -79,17 +79,15 @@ CGAME::CGAME()
       mCheathcliffTexture1(nullptr), mCheathcliffTexture2(nullptr),
       mCillfangTexture1(nullptr), mCillfangTexture2(nullptr),
       mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
-      mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
+      mBgMenuTexture(nullptr), mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
-      mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr), mBgmPlaying(nullptr),
-      mSfxHit(nullptr), mSfxWin(nullptr),
-      mSfxCillfang(nullptr), mSfxCicedragon(nullptr),
-      mSfxCheathcliff(nullptr), mSfxCGleameyes(nullptr),
+      mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
+      mSfxHit(nullptr),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
 CGAME::~CGAME() {
@@ -145,13 +143,7 @@ bool CGAME::init(const char* title, int width, int height) {
     if (mMixer) {
         mBgmTrack = MIX_CreateTrack(mMixer);
         mBgmMenu = loadAudioFlexible(mMixer, "assets/audio/bgm_menu");
-        mBgmPlaying = loadAudioFlexible(mMixer, "assets/audio/bgm_playing");
         mSfxHit = loadAudioFlexible(mMixer, "assets/audio/sfx_hit");
-        mSfxWin = loadAudioFlexible(mMixer, "assets/audio/sfx_win");
-        mSfxCillfang = loadAudioFlexible(mMixer, "assets/audio/sfx_cillfang");
-        mSfxCicedragon = loadAudioFlexible(mMixer, "assets/audio/sfx_cicedragon");
-        mSfxCheathcliff = loadAudioFlexible(mMixer, "assets/audio/sfx_cheathcliff");
-        mSfxCGleameyes = loadAudioFlexible(mMixer, "assets/audio/sfx_cgleameyes");
 
         if (mBgmMenu && mBgmTrack) {
             playBGM(mBgmTrack, mBgmMenu);
@@ -184,6 +176,7 @@ bool CGAME::init(const char* title, int width, int height) {
     mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon1.png");
     mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon2.png");
     if (!mCicedragonTexture2) mCicedragonTexture2 = mCicedragonTexture1;
+    mBgMenuTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_menu.png");
     mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_playing.png");
     mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_top.png");
     mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_bottom.png");
@@ -287,8 +280,8 @@ void CGAME::handleInput() {
                     }
                     resetGame();
                     mState = GameState::PLAYING; // Vào chơi!
-                    if (mBgmPlaying && mBgmTrack) {
-                        playBGM(mBgmTrack, mBgmPlaying);
+                    if (mBgmTrack) {
+                        MIX_StopTrack(mBgmTrack, 0);
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -332,13 +325,13 @@ void CGAME::handleInput() {
                     if (mPlayer.isDead()) {
                         resetGame();
                         mState = GameState::PLAYING;
-                        if (mBgmPlaying && mBgmTrack) playBGM(mBgmTrack, mBgmPlaying);
+                        if (mBgmTrack) MIX_StopTrack(mBgmTrack, 0);
                     } else {
                         // Nếu thắng chiến dịch (không chết), hồi sinh chơi lại từ đầu
                         mStage = 1;
                         resetGame();
                         mState = GameState::PLAYING;
-                        if (mBgmPlaying && mBgmTrack) playBGM(mBgmTrack, mBgmPlaying);
+                        if (mBgmTrack) MIX_StopTrack(mBgmTrack, 0);
                     }
                 }
                 else if (key == SDLK_ESCAPE || key == SDLK_N) {
@@ -396,29 +389,8 @@ void CGAME::physicsWorkerFunc() {
                     sa->Move(0, 1280);
                 }
 
-                // Tiếng quái thú gầm khi ở gần người chơi (< 150px)
-                auto checkTell = [&](auto& list, MIX_Audio* sound) {
-                    for (auto item : list) {
-                        float dx = (float)(item->getX() - mPlayer.getX());
-                        float dy = (float)(item->getY() - mPlayer.getY());
-                        if (std::sqrt(dx * dx + dy * dy) < 150.0f) {
-                            static Uint64 lastTellTicks = 0;
-                            if (SDL_GetTicks() - lastTellTicks > 2500) {
-                                item->Tell(mMixer, sound);
-                                lastTellTicks = SDL_GetTicks();
-                            }
-                        }
-                    }
-                };
-
-                checkTell(mCillfangs, mSfxCillfang);
-                checkTell(mCicedragons, mSfxCicedragon);
-                checkTell(mCheathcliffs, mSfxCheathcliff);
-                checkTell(mGleameyes, mSfxCGleameyes);
-
                 if (mPlayer.isFinish()) {
                     mState = GameState::GAMEOVER;
-                    if (mMixer && mSfxWin) MIX_PlayAudio(mMixer, mSfxWin);
                 }
                 else if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
                     hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
@@ -537,111 +509,57 @@ void CGAME::render() {
     SDL_RenderPresent(mRenderer);
 }
 
-void CGAME::renderMenu() {
-    // ─── 1. NỀN GRADIENT (Deep Navy → Black) ───────────────────────
-    for (int y = 0; y < 720; y += 4) {
-        float ratio = (float)y / 720.0f; // 0.0 (trên) → 1.0 (dưới)
-        // Pha trộn từ Navy Blue (20,24,82) đến Midnight Black (5,5,15)
-        Uint8 r = (Uint8)(20 - ratio * 15);
-        Uint8 g = (Uint8)(24 - ratio * 19);
-        Uint8 b = (Uint8)(82 - ratio * 67);
-        SDL_SetRenderDrawColor(mRenderer, r, g, b, 255);
-        SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
-        SDL_RenderFillRect(mRenderer, &strip);
-    }
-
-    // ─── 2. NGÔI SAO NHẤP NHÁY ─────────────────────────────────────
-    struct Star { float x, y, speed; };
-    Star stars[] = {
-        {100, 50, 1.0f},  {300, 80, 1.5f},  {500, 30, 2.0f},
-        {700, 90, 0.8f},  {900, 60, 1.2f},  {1100, 40, 1.8f},
-        {150, 120, 2.5f}, {450, 100, 0.6f}, {750, 130, 1.4f},
-        {1050, 110, 1.1f},{200, 170, 0.9f}, {600, 160, 2.2f},
-        {1000, 150, 1.7f},{350, 190, 1.3f}, {850, 180, 0.7f},
-        {50, 200, 2.0f},  {1200, 70, 1.6f}, {640, 45, 1.9f},
-    };
-    for (auto& s : stars) {
-        float brightness = (sinf(mMenuAnimTimer * s.speed * 3.14f) + 1.0f) / 2.0f;
-        Uint8 alpha = (Uint8)(100 + brightness * 155); // Sáng tối từ 100-255
-        SDL_SetRenderDrawColor(mRenderer, 200, 220, 255, alpha);
-        SDL_FRect star = { s.x, s.y, 2.0f, 2.0f };
-        SDL_RenderFillRect(mRenderer, &star);
-    }
-
-    // ─── 3. THANH KIẾM CHÉO (Pixel Art Icon) ───────────────────────
-    int swordCenterX = 640; // Tâm X của cặp kiếm
-    int swordCenterY = 240; // Tâm Y
-
-    if (mSwordTexture) {
-        float w = 256.0f;
-        float h = 256.0f;
-        SDL_FRect dstRect = { (float)swordCenterX - w / 2.0f, (float)swordCenterY - h / 2.0f, w, h };
-        SDL_RenderTexture(mRenderer, mSwordTexture, NULL, &dstRect);
+void CGAME::renderMenuBackground() {
+    if (mBgMenuTexture) {
+        SDL_FRect bgRect = { 0.0f, 0.0f, 1280.0f, 720.0f };
+        SDL_RenderTexture(mRenderer, mBgMenuTexture, NULL, &bgRect);
     } else {
-        int swordLen = 80;
-        SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
-        for (int i = -swordLen; i <= swordLen; i++) {
-            SDL_FRect px = { (float)(swordCenterX + i - 1), (float)(swordCenterY + i - 1), 3.0f, 3.0f };
-            SDL_RenderFillRect(mRenderer, &px);
+        // GIAO DIỆN MÀU SÁNG BAN NGÀY (Light Mode Sky Blue Gradient Fallback)
+        for (int y = 0; y < 720; y += 4) {
+            float ratio = (float)y / 720.0f;
+            Uint8 r = (Uint8)(175 + ratio * 65);  // 175 -> 240
+            Uint8 g = (Uint8)(220 + ratio * 30);  // 220 -> 250
+            Uint8 b = 255;                        // 255
+            SDL_SetRenderDrawColor(mRenderer, r, g, b, 255);
+            SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
+            SDL_RenderFillRect(mRenderer, &strip);
         }
-        SDL_FRect hilt1 = { (float)(swordCenterX - swordLen - 5), (float)(swordCenterY - swordLen - 5), 12.0f, 12.0f };
-        SDL_SetRenderDrawColor(mRenderer, 255, 215, 0, 255);
-        SDL_RenderFillRect(mRenderer, &hilt1);
-
-        SDL_SetRenderDrawColor(mRenderer, 255, 130, 170, 255);
-        for (int i = -swordLen; i <= swordLen; i++) {
-            SDL_FRect px = { (float)(swordCenterX - i - 1), (float)(swordCenterY + i - 1), 3.0f, 3.0f };
-            SDL_RenderFillRect(mRenderer, &px);
-        }
-        SDL_FRect hilt2 = { (float)(swordCenterX + swordLen - 5), (float)(swordCenterY - swordLen - 5), 12.0f, 12.0f };
-        SDL_SetRenderDrawColor(mRenderer, 255, 215, 0, 255);
-        SDL_RenderFillRect(mRenderer, &hilt2);
     }
+}
 
-    float glowPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
-    Uint8 glowAlpha = (Uint8)(80 + glowPulse * 120);
-    SDL_SetRenderDrawColor(mRenderer, 255, 255, 200, glowAlpha);
-    SDL_FRect glow = { (float)(swordCenterX - 6), (float)(swordCenterY - 6), 12.0f, 12.0f };
-    SDL_RenderFillRect(mRenderer, &glow);
+void CGAME::renderMenu() {
+    renderMenuBackground();
 
-    // ─── 4. TIÊU ĐỀ GAME ──────────────────────────────────────────
-    SDL_Color titleColor = {255, 255, 255, 255};
-    SDL_Color subtitleColor = {100, 200, 255, 255};
-    mFont.drawTextCentered(mRenderer, "CROSSING GAME", 350, 5, titleColor);
-    mFont.drawTextCentered(mRenderer, "~ SWORD ART ONLINE EDITION ~", 400, 2, subtitleColor);
+    // ─── TIÊU ĐỀ GAME ──────────────────────────────────────────────
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor  = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "CROSSING GAME", 162, 5, titleShadow);
+    mFont.drawTextCentered(mRenderer, "CROSSING GAME", 160, 5, titleColor);
+    mFont.drawTextCentered(mRenderer, "~ SWORD ART ONLINE EDITION ~", 215, 2, subtitleColor);
 
-    // ─── 5. KHUNG PANEL MENU ───────────────────────────────────────
-    float panelX = 340.0f, panelY = 430.0f;
-    float panelW = 600.0f, panelH = 230.0f;
+    // ─── KHUNG PANEL MENU (FROSTED GLASS) ──────────────────────────
+    float panelX = 340.0f, panelY = 380.0f;
+    float panelW = 600.0f, panelH = 260.0f;
 
-    SDL_SetRenderDrawColor(mRenderer, 10, 15, 40, 180);
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 160);
     SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
     SDL_RenderFillRect(mRenderer, &panelBg);
 
-    SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
-    SDL_FRect borderTop    = { panelX, panelY, panelW, 2.0f };
-    SDL_FRect borderBottom = { panelX, panelY + panelH - 2, panelW, 2.0f };
-    SDL_FRect borderLeft   = { panelX, panelY, 2.0f, panelH };
-    SDL_FRect borderRight  = { panelX + panelW - 2, panelY, 2.0f, panelH };
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
     SDL_RenderFillRect(mRenderer, &borderTop);
     SDL_RenderFillRect(mRenderer, &borderBottom);
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
-    float cs = 6.0f;
-    SDL_FRect c1 = { panelX - 2, panelY - 2, cs, cs };
-    SDL_FRect c2 = { panelX + panelW - cs + 2, panelY - 2, cs, cs };
-    SDL_FRect c3 = { panelX - 2, panelY + panelH - cs + 2, cs, cs };
-    SDL_FRect c4 = { panelX + panelW - cs + 2, panelY + panelH - cs + 2, cs, cs };
-    SDL_RenderFillRect(mRenderer, &c1);
-    SDL_RenderFillRect(mRenderer, &c2);
-    SDL_RenderFillRect(mRenderer, &c3);
-    SDL_RenderFillRect(mRenderer, &c4);
-
-    // ─── 6. MENU OPTIONS ───────────────────────────────────────────
-    SDL_Color normalColor  = {150, 160, 180, 255};
-    SDL_Color selectColor  = {255, 215, 0, 255};
+    // ─── MENU OPTIONS ──────────────────────────────────────────────
+    SDL_Color normalColor  = {30, 60, 50, 255};
+    SDL_Color selectColor  = {10, 95, 75, 255};
 
     std::string menuOptions[3] = {
         "NEW GAME",
@@ -650,63 +568,44 @@ void CGAME::renderMenu() {
     };
 
     for (int i = 0; i < 3; ++i) {
-        int yPos = 455 + i * 60;
+        int yPos = 410 + i * 65;
 
         if (mSelectedMenuOption == i) {
-            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 40);
-            SDL_FRect highlight = { panelX + 10, (float)yPos - 5, panelW - 20, 40.0f };
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+            SDL_FRect highlight = { panelX + 10, (float)yPos - 5, panelW - 20, 45.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
-            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
-            SDL_FRect hlBorder = { panelX + 10, (float)yPos - 5, 3.0f, 40.0f };
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_FRect hlBorder = { panelX + 10, (float)yPos - 5, 4.0f, 45.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 5.0f;
-            mFont.drawText(mRenderer, ">", (int)(panelX + 30 + arrowOffset), yPos + 4, 3, selectColor);
-            mFont.drawText(mRenderer, menuOptions[i], (int)(panelX + 70), yPos + 4, 3, selectColor);
+            mFont.drawText(mRenderer, ">", (int)(panelX + 30 + arrowOffset), yPos + 8, 3, selectColor);
+            mFont.drawText(mRenderer, menuOptions[i], (int)(panelX + 70), yPos + 8, 3, selectColor);
         } else {
-            mFont.drawText(mRenderer, menuOptions[i], (int)(panelX + 70), yPos + 4, 3, normalColor);
+            mFont.drawText(mRenderer, menuOptions[i], (int)(panelX + 70), yPos + 8, 3, normalColor);
         }
     }
 
-    // ─── 7. HƯỚNG DẪN / CẢNH BÁO ──────────────────────────────────
+    // ─── HƯỚNG DẪN ─────────────────────────────────────────────────
     if (mShowMenuWarning) {
-        SDL_Color warnColor = {255, 80, 80, 255};
-        mFont.drawTextCentered(mRenderer, "NOT SUPPORTED YET!", 680, 2, warnColor);
+        SDL_Color warnColor = {200, 30, 30, 255};
+        mFont.drawTextCentered(mRenderer, "NOT SUPPORTED YET!", 660, 2, warnColor);
     } else {
-        SDL_Color guideColor = {80, 100, 120, 255};
-        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER TO CHOOSE", 685, 1, guideColor);
+        SDL_Color guideColor = {255, 255, 255, 200};
+        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER TO CHOOSE", 665, 1, guideColor);
     }
 }
 
 void CGAME::renderCharSelect() {
-    for (int y = 0; y < 720; y += 4) {
-        float ratio = (float)y / 720.0f;
-        Uint8 r = (Uint8)(20 - ratio * 15);
-        Uint8 g = (Uint8)(24 - ratio * 19);
-        Uint8 b = (Uint8)(82 - ratio * 67);
-        SDL_SetRenderDrawColor(mRenderer, r, g, b, 255);
-        SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
-        SDL_RenderFillRect(mRenderer, &strip);
-    }
-    struct Star { float x, y, speed; };
-    Star stars[] = {
-        {100, 50, 1.0f}, {300, 80, 1.5f}, {500, 30, 2.0f}, {700, 90, 0.8f}, {900, 60, 1.2f},
-        {1100, 40, 1.8f}, {150, 120, 2.5f}, {450, 100, 0.6f}, {750, 130, 1.4f}, {1050, 110, 1.1f}
-    };
-    for (auto& s : stars) {
-        float brightness = (sinf(mMenuAnimTimer * s.speed * 3.14f) + 1.0f) / 2.0f;
-        Uint8 alpha = (Uint8)(100 + brightness * 155);
-        SDL_SetRenderDrawColor(mRenderer, 200, 220, 255, alpha);
-        SDL_FRect star = { s.x, s.y, 2.0f, 2.0f };
-        SDL_RenderFillRect(mRenderer, &star);
-    }
+    renderMenuBackground();
 
-    SDL_Color whiteColor = {255, 255, 255, 255};
-    SDL_Color cyanColor = {80, 200, 255, 255};
-    SDL_Color roseColor = {255, 130, 170, 255};
-    mFont.drawTextCentered(mRenderer, "SELECT YOUR HERO", 70, 4, whiteColor);
-    mFont.drawTextCentered(mRenderer, "SWORD ART ONLINE CHARACTER SELECTION", 120, 2, cyanColor);
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "SELECT YOUR HERO", 68, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "SELECT YOUR HERO", 66, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "SWORD ART ONLINE CHARACTER SELECTION", 118, 2, subtitleColor);
 
     auto drawTextCenteredInBox = [&](const std::string& text, float boxX, float boxW, float y, int scale, SDL_Color color) {
         int textWidth = (int)text.length() * (8 + 1) * scale - scale;
@@ -714,23 +613,27 @@ void CGAME::renderCharSelect() {
         mFont.drawText(mRenderer, text, targetX, (int)y, scale, color);
     };
 
-    SDL_Color labelColor = {180, 200, 220, 255};
-    SDL_Color valColor = {255, 255, 255, 255};
+    SDL_Color cyanColor = {0, 140, 200, 255};
+    SDL_Color roseColor = {200, 60, 100, 255};
+    SDL_Color labelColor = {40, 60, 55, 255};
+    SDL_Color valColor = {30, 50, 45, 255};
     bool kSelected = (mSelectedCharOption == 0);
 
     SDL_Texture* kTex = mPlayer.getKiritoTexture();
     SDL_Texture* aTex = mPlayer.getAsunaTexture();
 
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+
     // KIRITO
     if (kSelected) {
         float cX = 465.0f, cY = 170.0f, cW = 350.0f, cH = 420.0f;
-        SDL_SetRenderDrawColor(mRenderer, 10, 25, 45, 220);
+        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 180);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
         float borderPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
         Uint8 borderAlpha = (Uint8)(180 + borderPulse * 75);
-        SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, borderAlpha);
+        SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, borderAlpha);
         SDL_FRect b1 = { cX, cY, cW, 3.0f };
         SDL_FRect b2 = { cX, cY + cH - 3, cW, 3.0f };
         SDL_FRect b3 = { cX, cY, 3.0f, cH };
@@ -747,19 +650,17 @@ void CGAME::renderCharSelect() {
             drawTextCenteredInBox("K", cX, cW, cY + 45, 6, cyanColor);
         }
         
-        drawTextCenteredInBox("KIRITO", cX, cW, cY + 160, 3, cyanColor);
-        drawTextCenteredInBox("HP    : [========] 200/200", cX, cW, cY + 220, 1, labelColor);
-        drawTextCenteredInBox("SPEED : 20 (DASH SPEED)", cX, cW, cY + 255, 1, valColor);
-        drawTextCenteredInBox("WEAPON: ELUCIDATOR", cX, cW, cY + 290, 1, valColor);
-        drawTextCenteredInBox("CLASS : DUAL WIELDER", cX, cW, cY + 325, 1, valColor);
-        drawTextCenteredInBox(">> ACTIVE HERO <<", cX, cW, cY + 370, 2, cyanColor);
+        drawTextCenteredInBox("KIRITO", cX, cW, cY + 180, 3, cyanColor);
+        drawTextCenteredInBox("CHARACTER SKIN: KIRITO", cX, cW, cY + 240, 1, valColor);
+        drawTextCenteredInBox("THE BLACK SWORDSMAN", cX, cW, cY + 275, 1, labelColor);
+        drawTextCenteredInBox(">> ACTIVE HERO SKIN <<", cX, cW, cY + 350, 2, cyanColor);
     } else {
         float cX = 160.0f, cY = 230.0f, cW = 220.0f, cH = 300.0f;
-        SDL_SetRenderDrawColor(mRenderer, 10, 15, 25, 120);
+        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 100);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        SDL_SetRenderDrawColor(mRenderer, 50, 70, 90, 100);
+        SDL_SetRenderDrawColor(mRenderer, 80, 130, 120, 100);
         SDL_FRect b1 = { cX, cY, cW, 2.0f };
         SDL_FRect b2 = { cX, cY + cH - 2, cW, 2.0f };
         SDL_FRect b3 = { cX, cY, 2.0f, cH };
@@ -775,23 +676,23 @@ void CGAME::renderCharSelect() {
             SDL_RenderTexture(mRenderer, kTex, NULL, &dstRect);
             SDL_SetTextureAlphaMod(kTex, 255);
         } else {
-            drawTextCenteredInBox("K", cX, cW, cY + 35, 4, SDL_Color{80, 200, 255, 120});
+            drawTextCenteredInBox("K", cX, cW, cY + 35, 4, SDL_Color{0, 140, 200, 120});
         }
         
-        drawTextCenteredInBox("KIRITO", cX, cW, cY + 125, 2, SDL_Color{100, 120, 140, 120});
-        drawTextCenteredInBox("[ PRESS A ]", cX, cW, cY + 220, 1, SDL_Color{80, 100, 120, 100});
+        drawTextCenteredInBox("KIRITO", cX, cW, cY + 125, 2, SDL_Color{60, 80, 75, 150});
+        drawTextCenteredInBox("[ PRESS A ]", cX, cW, cY + 220, 1, SDL_Color{60, 80, 75, 130});
     }
 
     // ASUNA
     if (!kSelected) {
         float cX = 465.0f, cY = 170.0f, cW = 350.0f, cH = 420.0f;
-        SDL_SetRenderDrawColor(mRenderer, 45, 15, 25, 220);
+        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 180);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
         float borderPulse = (sinf(mMenuAnimTimer * 4.0f) + 1.0f) / 2.0f;
         Uint8 borderAlpha = (Uint8)(180 + borderPulse * 75);
-        SDL_SetRenderDrawColor(mRenderer, 255, 130, 170, borderAlpha);
+        SDL_SetRenderDrawColor(mRenderer, 200, 60, 100, borderAlpha);
         SDL_FRect b1 = { cX, cY, cW, 3.0f };
         SDL_FRect b2 = { cX, cY + cH - 3, cW, 3.0f };
         SDL_FRect b3 = { cX, cY, 3.0f, cH };
@@ -808,19 +709,17 @@ void CGAME::renderCharSelect() {
             drawTextCenteredInBox("A", cX, cW, cY + 45, 6, roseColor);
         }
 
-        drawTextCenteredInBox("ASUNA", cX, cW, cY + 160, 3, roseColor);
-        drawTextCenteredInBox("HP    : [====]     100/100", cX, cW, cY + 220, 1, labelColor);
-        drawTextCenteredInBox("SPEED : 16 (STANDARD)", cX, cW, cY + 255, 1, valColor);
-        drawTextCenteredInBox("WEAPON: LAMBENT LIGHT", cX, cW, cY + 290, 1, valColor);
-        drawTextCenteredInBox("CLASS : FLASH RAPIER", cX, cW, cY + 325, 1, valColor);
-        drawTextCenteredInBox(">> ACTIVE HERO <<", cX, cW, cY + 370, 2, roseColor);
+        drawTextCenteredInBox("ASUNA", cX, cW, cY + 180, 3, roseColor);
+        drawTextCenteredInBox("CHARACTER SKIN: ASUNA", cX, cW, cY + 240, 1, valColor);
+        drawTextCenteredInBox("THE FLASH STRIKER", cX, cW, cY + 275, 1, labelColor);
+        drawTextCenteredInBox(">> ACTIVE HERO SKIN <<", cX, cW, cY + 350, 2, roseColor);
     } else {
         float cX = 900.0f, cY = 230.0f, cW = 220.0f, cH = 300.0f;
-        SDL_SetRenderDrawColor(mRenderer, 25, 10, 15, 120);
+        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 100);
         SDL_FRect panel = { cX, cY, cW, cH };
         SDL_RenderFillRect(mRenderer, &panel);
 
-        SDL_SetRenderDrawColor(mRenderer, 90, 60, 70, 100);
+        SDL_SetRenderDrawColor(mRenderer, 140, 80, 100, 100);
         SDL_FRect b1 = { cX, cY, cW, 2.0f };
         SDL_FRect b2 = { cX, cY + cH - 2, cW, 2.0f };
         SDL_FRect b3 = { cX, cY, 2.0f, cH };
@@ -836,89 +735,62 @@ void CGAME::renderCharSelect() {
             SDL_RenderTexture(mRenderer, aTex, NULL, &dstRect);
             SDL_SetTextureAlphaMod(aTex, 255);
         } else {
-            drawTextCenteredInBox("A", cX, cW, cY + 35, 4, SDL_Color{255, 130, 170, 120});
+            drawTextCenteredInBox("A", cX, cW, cY + 35, 4, SDL_Color{200, 60, 100, 120});
         }
 
-        drawTextCenteredInBox("ASUNA", cX, cW, cY + 125, 2, SDL_Color{140, 100, 110, 120});
-        drawTextCenteredInBox("[ PRESS D ]", cX, cW, cY + 220, 1, SDL_Color{120, 80, 100, 100});
+        drawTextCenteredInBox("ASUNA", cX, cW, cY + 125, 2, SDL_Color{100, 70, 80, 150});
+        drawTextCenteredInBox("[ PRESS D ]", cX, cW, cY + 220, 1, SDL_Color{100, 70, 80, 130});
     }
 
-    SDL_Color guideColor = {120, 140, 160, 255};
+    SDL_Color guideColor = {255, 255, 255, 200};
     mFont.drawTextCentered(mRenderer, "USE 'A'/'D' OR 'LEFT'/'RIGHT' TO SELECT  -  PRESS 'ENTER' TO CHOOSE", 640, 1, guideColor);
 }
 
 void CGAME::renderStageSelect() {
-    for (int y = 0; y < 720; y += 4) {
-        float ratio = (float)y / 720.0f;
-        Uint8 r = (Uint8)(20 - ratio * 15);
-        Uint8 g = (Uint8)(24 - ratio * 19);
-        Uint8 b = (Uint8)(82 - ratio * 67);
-        SDL_SetRenderDrawColor(mRenderer, r, g, b, 255);
-        SDL_FRect strip = { 0.0f, (float)y, 1280.0f, 4.0f };
-        SDL_RenderFillRect(mRenderer, &strip);
-    }
-    struct Star { float x, y, speed; };
-    Star stars[] = {
-        {100, 50, 1.0f}, {300, 80, 1.5f}, {500, 30, 2.0f}, {700, 90, 0.8f}, {900, 60, 1.2f},
-        {1100, 40, 1.8f}, {150, 120, 2.5f}, {450, 100, 0.6f}, {750, 130, 1.4f}, {1050, 110, 1.1f}
-    };
-    for (auto& s : stars) {
-        float brightness = (sinf(mMenuAnimTimer * s.speed * 3.14f) + 1.0f) / 2.0f;
-        Uint8 alpha = (Uint8)(100 + brightness * 155);
-        SDL_SetRenderDrawColor(mRenderer, 200, 220, 255, alpha);
-        SDL_FRect star = { s.x, s.y, 2.0f, 2.0f };
-        SDL_RenderFillRect(mRenderer, &star);
-    }
+    renderMenuBackground();
 
-    SDL_Color whiteColor = {255, 255, 255, 255};
-    SDL_Color cyanColor = {80, 200, 255, 255};
-    mFont.drawTextCentered(mRenderer, "SELECT CHALLENGE LEVEL", 100, 4, whiteColor);
-    mFont.drawTextCentered(mRenderer, "CHOOSE THE QUEST DIFFICULTY", 150, 2, cyanColor);
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "SELECT CHALLENGE MODE", 98, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "SELECT CHALLENGE MODE", 96, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "CHOOSE THE QUEST DIFFICULTY", 146, 2, subtitleColor);
 
     float panelX = 240.0f, panelY = 220.0f;
     float panelW = 800.0f, panelH = 380.0f;
 
-    SDL_SetRenderDrawColor(mRenderer, 10, 15, 30, 180);
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 160);
     SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
     SDL_RenderFillRect(mRenderer, &panelBg);
 
-    SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
-    SDL_FRect borderTop    = { panelX, panelY, panelW, 2.0f };
-    SDL_FRect borderBottom = { panelX, panelY + panelH - 2, panelW, 2.0f };
-    SDL_FRect borderLeft   = { panelX, panelY, 2.0f, panelH };
-    SDL_FRect borderRight  = { panelX + panelW - 2, panelY, 2.0f, panelH };
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
     SDL_RenderFillRect(mRenderer, &borderTop);
     SDL_RenderFillRect(mRenderer, &borderBottom);
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
-
-    float cs = 6.0f;
-    SDL_FRect c1 = { panelX - 2, panelY - 2, cs, cs };
-    SDL_FRect c2 = { panelX + panelW - cs + 2, panelY - 2, cs, cs };
-    SDL_FRect c3 = { panelX - 2, panelY + panelH - cs + 2, cs, cs };
-    SDL_FRect c4 = { panelX + panelW - cs + 2, panelY + panelH - cs + 2, cs, cs };
-    SDL_RenderFillRect(mRenderer, &c1);
-    SDL_RenderFillRect(mRenderer, &c2);
-    SDL_RenderFillRect(mRenderer, &c3);
-    SDL_RenderFillRect(mRenderer, &c4);
 
     std::string stages[2] = {
         "TUTORIAL: 1 MAP (SAFE START)",
         "INFINITE MODE: SURVIVAL"
     };
 
-    SDL_Color normalColor  = {140, 160, 180, 255};
-    SDL_Color selectColor  = {255, 215, 0, 255};
+    SDL_Color normalColor  = {30, 60, 50, 255};
+    SDL_Color selectColor  = {10, 95, 75, 255};
 
     for (int i = 0; i < 2; ++i) {
         int yPos = 280 + i * 120;
 
         if (mSelectedStageOption == i) {
-            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 45);
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
             SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 50.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
-            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 200);
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
             SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 50.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
@@ -930,7 +802,7 @@ void CGAME::renderStageSelect() {
         }
     }
 
-    SDL_Color guideColor = {80, 100, 120, 255};
+    SDL_Color guideColor = {255, 255, 255, 200};
     mFont.drawTextCentered(mRenderer, "USE 'W'/'S' OR 'UP'/'DOWN' TO CHOOSE  -  ENTER TO ENTER THE QUEST", 635, 1, guideColor);
 }
 
@@ -995,7 +867,7 @@ void CGAME::renderPlaying() {
                 }
             }
 
-            SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 120);
+        SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 120);
             SDL_FRect border = { 0.0f, screenY - 1.0f, 1280.0f, 2.0f };
             SDL_RenderFillRect(mRenderer, &border);
         }
@@ -1007,7 +879,19 @@ void CGAME::renderPlaying() {
         drawObstacleList(mBluewings, mRenderer, mFont, mCameraY);
         drawObstacleList(mSkyarmors, mRenderer, mFont, mCameraY);
 
+        for (auto& tl : mTrafficLights) {
+            tl.draw(mRenderer, mFont, mCameraY);
+        }
+
         mPlayer.draw(mRenderer, mFont, mCameraY);
+
+        if (mFlashTimer > 0.0f) {
+            SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+            Uint8 alpha = (Uint8)((mFlashTimer / 0.5f) * 180.0f);
+            SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, alpha);
+            SDL_FRect flashRect = { 0.0f, 0.0f, 1280.0f, 720.0f };
+            SDL_RenderFillRect(mRenderer, &flashRect);
+        }
 
         SDL_Color hudColor = {255, 255, 255, 255};
         SDL_Color cyanGlow = {80, 200, 255, 255};
@@ -1297,6 +1181,7 @@ void CGAME::resetInfinite() {
 
     mPlayer.resetPosition();
     clearObstacles();
+    mTrafficLights.clear();
     initInfiniteLanes();
 }
 
@@ -1344,12 +1229,20 @@ void CGAME::pruneLanes() {
         if (screenY <= 720.0f + mLaneHeight * 2) break;
         mLanes.pop_back();
     }
+
+    mTrafficLights.erase(
+        std::remove_if(mTrafficLights.begin(), mTrafficLights.end(), [&](const CTRAFFICLIGHT& light) {
+            float screenY = (float)light.getLaneY() - mCameraY;
+            return screenY > 720.0f + mLaneHeight * 2;
+        }),
+        mTrafficLights.end()
+    );
 }
 
 void CGAME::spawnObstaclesForLane(const Lane& lane) {
     if (lane.type == LaneType::REST) return;
 
-    int speedBoost = mInfiniteLevel / 3;
+    int speedBoost = (mInfiniteLevel - 1) / 2;
     int count = randomRange(2, 4);
     int spacing = 1280 / count;
 
@@ -1358,12 +1251,12 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
             int startX = i * spacing + randomRange(0, spacing - 40);
             if (laneType == LaneType::VEHICLE) {
                 if (randomRange(0, 1) == 0) {
-                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+                    int speed = randomRange(2 + speedBoost, 3 + speedBoost);
                     CBLUEWING* c = new CBLUEWING(startX, lane.worldY, speed, direction);
                     c->setTexture(mCbluewingTexture);
                     mBluewings.push_back(c);
                 } else {
-                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    int speed = randomRange(1 + speedBoost, 2 + speedBoost);
                     CSKYARMOR* t = new CSKYARMOR(startX, lane.worldY, speed, direction);
                     t->setTexture(mCskyarmorTexture);
                     mSkyarmors.push_back(t);
@@ -1371,22 +1264,22 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
             } else if (laneType == LaneType::MONSTER) {
                 int r = randomRange(0, 3);
                 if (r == 0) {
-                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    int speed = randomRange(1 + speedBoost, 2 + speedBoost);
                     CILLFANG* d = new CILLFANG(startX, lane.worldY, speed, direction);
                     d->setTextures(mCillfangTexture1, mCillfangTexture2);
                     mCillfangs.push_back(d);
                 } else if (r == 1) {
-                    int speed = randomRange(4 + speedBoost, 6 + speedBoost);
+                    int speed = randomRange(2 + speedBoost, 3 + speedBoost);
                     CICEDRAGON* b = new CICEDRAGON(startX, lane.worldY, speed, direction);
                     b->setTextures(mCicedragonTexture1, mCicedragonTexture2);
                     mCicedragons.push_back(b);
                 } else if (r == 2) {
-                    int speed = randomRange(3 + speedBoost, 5 + speedBoost);
+                    int speed = randomRange(1 + speedBoost, 2 + speedBoost);
                     CHEATHCLIFF* c = new CHEATHCLIFF(startX, lane.worldY, speed, direction);
                     c->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
                     mCheathcliffs.push_back(c);
                 } else {
-                    int speed = randomRange(2 + speedBoost, 4 + speedBoost);
+                    int speed = randomRange(1 + speedBoost, 2 + speedBoost);
                     CGLEAMEYES* t = new CGLEAMEYES(startX, lane.worldY, speed, direction);
                     t->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
                     mGleameyes.push_back(t);
@@ -1394,6 +1287,12 @@ void CGAME::spawnObstaclesForLane(const Lane& lane) {
             }
         }
     };
+
+    if (lane.type == LaneType::VEHICLE) {
+        CTRAFFICLIGHT light(lane.worldY, 3.0f, 5.0f);
+        light.initTextures(mRenderer);
+        mTrafficLights.push_back(light);
+    }
 
     spawnLane(lane.type, (lane.type == LaneType::VEHICLE) ? -1 : 1);
 }
@@ -1405,8 +1304,21 @@ void CGAME::updateInfinite(float deltaTime) {
     moveObstacleList(mCheathcliffs, 0, 1280);
     moveObstacleList(mCillfangs, 0, 1280);
     moveObstacleList(mCicedragons, 0, 1280);
-    moveObstacleList(mBluewings, 0, 1280);
-    moveObstacleList(mSkyarmors, 0, 1280);
+
+    for (auto bw : mBluewings) {
+        bool isRed = false;
+        for (const auto& light : mTrafficLights) {
+            if (light.getLaneY() == bw->getY() && light.isRed()) { isRed = true; break; }
+        }
+        if (!isRed) bw->Move(0, 1280);
+    }
+    for (auto sa : mSkyarmors) {
+        bool isRed = false;
+        for (const auto& light : mTrafficLights) {
+            if (light.getLaneY() == sa->getY() && light.isRed()) { isRed = true; break; }
+        }
+        if (!isRed) sa->Move(0, 1280);
+    }
 
     float screenY = (float)mPlayer.getY() - mCameraY;
     if (screenY < 200.0f) {
@@ -1447,6 +1359,8 @@ void CGAME::updateInfinite(float deltaTime) {
         hitPlayerAgainstList(mPlayer, mSkyarmors)) {
         mPlayer.setDead(true);
         mState = GameState::GAMEOVER;
+        mFlashTimer = 0.5f;
+        if (mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
         return;
     }
 }
@@ -1484,13 +1398,7 @@ void CGAME::exitGame() {
 
     if (mBgmTrack) { MIX_DestroyTrack(mBgmTrack); mBgmTrack = nullptr; }
     if (mBgmMenu) { MIX_DestroyAudio(mBgmMenu); mBgmMenu = nullptr; }
-    if (mBgmPlaying) { MIX_DestroyAudio(mBgmPlaying); mBgmPlaying = nullptr; }
     if (mSfxHit) { MIX_DestroyAudio(mSfxHit); mSfxHit = nullptr; }
-    if (mSfxWin) { MIX_DestroyAudio(mSfxWin); mSfxWin = nullptr; }
-    if (mSfxCillfang) { MIX_DestroyAudio(mSfxCillfang); mSfxCillfang = nullptr; }
-    if (mSfxCicedragon) { MIX_DestroyAudio(mSfxCicedragon); mSfxCicedragon = nullptr; }
-    if (mSfxCheathcliff) { MIX_DestroyAudio(mSfxCheathcliff); mSfxCheathcliff = nullptr; }
-    if (mSfxCGleameyes) { MIX_DestroyAudio(mSfxCGleameyes); mSfxCGleameyes = nullptr; }
     if (mMixer) { MIX_DestroyMixer(mMixer); mMixer = nullptr; }
 
     if (mCGleameyesTexture1) { SDL_DestroyTexture(mCGleameyesTexture1); mCGleameyesTexture1 = nullptr; }
@@ -1502,6 +1410,7 @@ void CGAME::exitGame() {
     if (mCicedragonTexture1) { SDL_DestroyTexture(mCicedragonTexture1); mCicedragonTexture1 = nullptr; }
     if (mCicedragonTexture2) { SDL_DestroyTexture(mCicedragonTexture2); mCicedragonTexture2 = nullptr; }
 
+    if (mBgMenuTexture) { SDL_DestroyTexture(mBgMenuTexture); mBgMenuTexture = nullptr; }
     if (mBgPlayingTexture) { SDL_DestroyTexture(mBgPlayingTexture); mBgPlayingTexture = nullptr; }
     if (mSidewalkTopTexture) { SDL_DestroyTexture(mSidewalkTopTexture); mSidewalkTopTexture = nullptr; }
     if (mSidewalkBottomTexture) { SDL_DestroyTexture(mSidewalkBottomTexture); mSidewalkBottomTexture = nullptr; }
