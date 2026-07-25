@@ -88,7 +88,7 @@ CGAME::CGAME()
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
-      mSfxHit(nullptr), mAudioMuted(false),
+      mSfxHit(nullptr), mSfxJump(nullptr), mAudioMuted(false), mSfxMuted(false),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
 CGAME::~CGAME() {
@@ -145,6 +145,7 @@ bool CGAME::init(const char* title, int width, int height) {
         mBgmTrack = MIX_CreateTrack(mMixer);
         mBgmMenu = loadAudioFlexible(mMixer, "assets/audio/bgm_menu");
         mSfxHit = loadAudioFlexible(mMixer, "assets/audio/sfx_hit");
+        mSfxJump = loadAudioFlexible(mMixer, "assets/audio/sfx_jump");
 
         if (mBgmMenu && mBgmTrack) {
             playBGM(mBgmTrack, mBgmMenu);
@@ -289,17 +290,25 @@ void CGAME::handleInput() {
                 }
             }
             else if (mState == GameState::SETTINGS) {
-                if (key == SDLK_W || key == SDLK_UP || key == SDLK_S || key == SDLK_DOWN) {
-                    mSelectedSettingsOption = 0;
+                if (key == SDLK_W || key == SDLK_UP) {
+                    mSelectedSettingsOption = (mSelectedSettingsOption - 1 + 2) % 2;
+                }
+                else if (key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedSettingsOption = (mSelectedSettingsOption + 1) % 2;
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_A || key == SDLK_D || key == SDLK_LEFT || key == SDLK_RIGHT) {
-                    toggleMusic();
+                    if (mSelectedSettingsOption == 0) {
+                        toggleMusic();
+                    } else {
+                        toggleSfx();
+                    }
                 }
                 else if (key == SDLK_ESCAPE) {
                     mState = GameState::MENU;
                 }
             }
             else if (mState == GameState::PLAYING) {
+                std::lock_guard<std::mutex> lock(mGameMutex);
                 int topLimit = 40;
                 int bottomLimit = 600;
                 if (mIsInfinityMode) {
@@ -308,24 +317,33 @@ void CGAME::handleInput() {
                 }
 
                 bool moved = false;
-                // Di chuyển nhân vật bằng W/A/S/D hoặc các phím mũi tên
-                if (key == SDLK_W || key == SDLK_UP) {
-                    mPlayer.Up(topLimit);
-                    moved = true;
+                // Bắt buộc bấm nhả từng phím (không cho đè phím để di chuyển liên tục)
+                if (!event.key.repeat) {
+                    if (key == SDLK_W || key == SDLK_UP) {
+                        mPlayer.Up(topLimit);
+                        moved = true;
+                    }
+                    else if (key == SDLK_S || key == SDLK_DOWN) {
+                        mPlayer.Down(bottomLimit);
+                        moved = true;
+                    }
+                    else if (key == SDLK_A || key == SDLK_LEFT) {
+                        mPlayer.Left(0); // Biên trái
+                        moved = true;
+                    }
+                    else if (key == SDLK_D || key == SDLK_RIGHT) {
+                        mPlayer.Right(1280 - mPlayer.getWidth()); // Biên phải
+                        moved = true;
+                    }
                 }
-                else if (key == SDLK_S || key == SDLK_DOWN) {
-                    mPlayer.Down(bottomLimit);
-                    moved = true;
+
+                if (moved) {
+                    if (!mSfxMuted && mMixer && mSfxJump) {
+                        MIX_PlayAudio(mMixer, mSfxJump);
+                    }
                 }
-                else if (key == SDLK_A || key == SDLK_LEFT) {
-                    mPlayer.Left(0); // Biên trái
-                    moved = true;
-                }
-                else if (key == SDLK_D || key == SDLK_RIGHT) {
-                    mPlayer.Right(1280 - mPlayer.getWidth()); // Biên phải
-                    moved = true;
-                }
-                else if (key == SDLK_ESCAPE) {
+
+                if (key == SDLK_ESCAPE) {
                     mState = GameState::MENU;
                 }
             }
@@ -407,7 +425,7 @@ void CGAME::physicsWorkerFunc() {
                     mPlayer.setDead(true);
                     mState = GameState::GAMEOVER;
                     mFlashTimer = 0.5f;
-                    if (mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
+                    if (!mSfxMuted && mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
                 }
             }
         }
@@ -824,6 +842,10 @@ void CGAME::toggleMusic() {
     }
 }
 
+void CGAME::toggleSfx() {
+    mSfxMuted = !mSfxMuted;
+}
+
 void CGAME::renderSettings() {
     renderMenuBackground();
 
@@ -852,27 +874,40 @@ void CGAME::renderSettings() {
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    std::string musicStatus = mAudioMuted ? "MUSIC BGM: [ OFF ]" : "MUSIC BGM: [ ON ]";
+    std::string options[2] = {
+        mAudioMuted ? "MUSIC BGM : [ OFF ]" : "MUSIC BGM : [ ON ]",
+        mSfxMuted   ? "SOUND SFX : [ OFF ]" : "SOUND SFX : [ ON ]"
+    };
+
+    SDL_Color normalColor = {30, 60, 50, 255};
     SDL_Color selectColor = {10, 95, 75, 255};
 
-    int yPos = 350;
-    SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
-    SDL_FRect highlight = { panelX + 20, (float)yPos - 15, panelW - 40, 60.0f };
-    SDL_RenderFillRect(mRenderer, &highlight);
+    for (int i = 0; i < 2; ++i) {
+        int yPos = 310 + i * 80;
 
-    SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
-    SDL_FRect hlBorder = { panelX + 20, (float)yPos - 15, 4.0f, 60.0f };
-    SDL_RenderFillRect(mRenderer, &hlBorder);
+        if (mSelectedSettingsOption == i) {
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 15, panelW - 40, 55.0f };
+            SDL_RenderFillRect(mRenderer, &highlight);
 
-    float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
-    mFont.drawText(mRenderer, ">", (int)(panelX + 50 + arrowOffset), yPos, 3, selectColor);
-    mFont.drawText(mRenderer, musicStatus, (int)(panelX + 90), yPos, 3, selectColor);
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 15, 4.0f, 55.0f };
+            SDL_RenderFillRect(mRenderer, &hlBorder);
+
+            float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+            mFont.drawText(mRenderer, ">", (int)(panelX + 50 + arrowOffset), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 90), yPos, 3, selectColor);
+        } else {
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 90), yPos, 3, normalColor);
+        }
+    }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "ENTER / A / D / SPACE TO TOGGLE MUSIC  -  ESC TO RETURN", 635, 1, guideColor);
+    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC TO RETURN", 635, 1, guideColor);
 }
 
 void CGAME::renderPlaying() {
+    std::lock_guard<std::mutex> lock(mGameMutex);
     if (mIsInfinityMode) {
         auto tileTex = [&](SDL_Texture* tex, float laneY, float laneW, float laneH) {
             float texW = 0, texH = 0;
@@ -1164,6 +1199,7 @@ void CGAME::startGame() {
 }
 
 void CGAME::resetGame() {
+    std::lock_guard<std::mutex> lock(mGameMutex);
     if (mIsInfinityMode) {
         resetInfinite();
     } else {
@@ -1438,7 +1474,7 @@ void CGAME::updateInfinite(float deltaTime) {
         mPlayer.setDead(true);
         mState = GameState::GAMEOVER;
         mFlashTimer = 0.5f;
-        if (mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
+        if (!mSfxMuted && mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
         return;
     }
 }
@@ -1477,6 +1513,7 @@ void CGAME::exitGame() {
     if (mBgmTrack) { MIX_DestroyTrack(mBgmTrack); mBgmTrack = nullptr; }
     if (mBgmMenu) { MIX_DestroyAudio(mBgmMenu); mBgmMenu = nullptr; }
     if (mSfxHit) { MIX_DestroyAudio(mSfxHit); mSfxHit = nullptr; }
+    if (mSfxJump) { MIX_DestroyAudio(mSfxJump); mSfxJump = nullptr; }
     if (mMixer) { MIX_DestroyMixer(mMixer); mMixer = nullptr; }
 
     if (mCGleameyesTexture1) { SDL_DestroyTexture(mCGleameyesTexture1); mCGleameyesTexture1 = nullptr; }

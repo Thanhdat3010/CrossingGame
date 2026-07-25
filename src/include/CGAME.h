@@ -103,7 +103,9 @@ private:
     MIX_Track* mBgmTrack;
     MIX_Audio* mBgmMenu;
     MIX_Audio* mSfxHit;
+    MIX_Audio* mSfxJump;
     bool mAudioMuted;
+    bool mSfxMuted;
 
     float mFlashTimer;
 
@@ -123,6 +125,7 @@ private:
     void renderSettings();
     void renderPlaying();
     void toggleMusic();
+    void toggleSfx();
 
     void clearObstacles();
 

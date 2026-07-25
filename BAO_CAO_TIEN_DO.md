@@ -31,35 +31,37 @@ Dưới đây là tổng hợp chi tiết những hạng mục **Đã hoàn thà
 
 ### 2.2 Các tính năng Yêu cầu Đồ án (Mục 4)
 *   **Cài đặt chạy được giống kịch bản mô tả (Yêu cầu 4.1 - 3 điểm)**:
-    *   Người chơi điều khiển nhân vật tránh né chướng ngại vật di chuyển qua lại trên đường.
-    *   Có cơ chế tự động tăng cấp độ khó (tăng tốc độ quái vật) và reset lại màn chơi khi bị va chạm hoặc hoàn thành màn chơi chiến dịch.
-    *   Hỗ trợ **Chế độ chơi vô tận (Infinite Mode)** với cơ chế camera cuộn mượt mà theo nhân vật lên phía trên.
+    *   Người chơi điều khiển nhân vật tránh né chướng ngại vật di chuyển qua lại trên đường (`W/A/S/D` hoặc phím mũi tên).
+    *   Cơ chế chống đè phím (Single-Tap Input): Bắt buộc bấm nhả từng phím để nhảy từng bước.
+    *   Có cơ chế tự động tăng cấp độ khó và reset lại màn chơi khi bị va chạm hoặc hoàn thành màn chơi chiến dịch.
+    *   Hỗ trợ **Chế độ chơi vô tận (Infinite Mode)** tính điểm chuẩn xác (+1 điểm/làn vượt qua) với cơ chế camera cuộn mượt mà theo nhân vật.
 *   **Giao diện thực đơn menu lúc mới vào (Yêu cầu 4.2 - 1 điểm)**:
-    *   Thiết kế Menu chính mang phong cách anime SAO với các tùy chọn: `NEW GAME`, `LOAD GAME`, `SETTINGS`.
-    *   Hỗ trợ màn hình **Chọn Nhân Vật (Character Select)** giữa Kirito (Dual Wielder) và Asuna (Flash Rapier) với các chỉ số RPG khác nhau.
+    *   Thiết kế Menu phong cách **Light Mode SAO Aincrad (Frosted Glass)** với các tùy chọn: `NEW GAME`, `LOAD GAME`, `SETTINGS`.
+    *   Hỗ trợ màn hình **Chọn Nhân Vật (Character Select)** giữa Kirito và Asuna.
     *   Hỗ trợ màn hình **Chọn Chế Độ Chơi (Stage Select)**: Chiến dịch (Tutorial) hoặc Sinh tồn vô tận (Infinite).
+    *   Hỗ trợ màn hình **Cài Đặt (Settings Menu)**: Cho phép Tắt/Bật Nhạc nền (`MUSIC BGM`) và Tắt/Bật Âm thanh (`SOUND SFX`) riêng biệt.
+*   **Hệ thống Đèn giao thông tạm dừng xe cộ (Yêu cầu 4.4 - 2 điểm)**:
+    *   Xây dựng lớp `CTRAFFICLIGHT` với bộ đếm 3s Đỏ / 5s Xanh.
+    *   Xe cộ dừng di chuyển khi gặp đèn đỏ. Cột đèn vẽ Pixel Art phát sáng Neon ở 2 bên vỉa hè.
+*   **Hiệu ứng âm thanh & va chạm (Yêu cầu 4.5 - 0.5 điểm)**:
+    *   Màn hình chớp mờ đỏ khi va chạm (`YOU DIED`).
+    *   Phát hiệu ứng âm thanh va chạm `sfx_hit.mp3` và tiếng nhảy `sfx_jump.wav`/`.mp3` nhịp nhàng khi nhân vật di chuyển.
+    *   Phát nhạc nền `bgm_menu.mp3` mượt mà xuyên suốt màn chơi.
+*   **Kỹ thuật Đa tiêu trình (Mục 3.3)**:
+    *   Sử dụng `std::thread mPhysicsThread` chạy luồng vật lý & kiểm tra va chạm tách biệt 100% với luồng vẽ giao diện UI.
+    *   Sử dụng `std::mutex mGameMutex` đồng bộ dữ liệu Thread-safe an toàn 100%.
 *   **Giao diện đồ họa UI/UX (Yêu cầu 4.6 - 0.5 điểm)**:
-    *   Sử dụng hình vẽ và kết cấu hình ảnh (textures) chi tiết cho các nhân vật, xe cộ, quái vật.
-    *   Phông chữ dạng Pixel vẽ bằng code độc đáo.
-    *   Sử dụng dải nền gradient bầu trời đêm anime cùng hiệu ứng sao nhấp nháy sinh động.
+    *   Sử dụng hình vẽ kết cấu (textures) chi tiết cho các nhân vật Kirito/Asuna, 4 loại quái Boss SAO, 2 loại xe và Đèn giao thông.
+    *   Hỗ trợ ảnh nền tự định nghĩa `bg_menu.png` giao diện sáng SAO Aincrad.
 
 ---
 
 ## 3. Những phần CHƯA LÀM ĐƯỢC / CẦN HOÀN THIỆN (Uncompleted & Future Work)
 
 *   **Xử lý Lưu / Tải trò chơi (Yêu cầu 4.3 - 3 điểm)**:
-    *   **Hiện trạng**: Chưa được triển khai. Menu chính khi chọn `LOAD GAME` hoặc nhấn phím khi đang chơi sẽ hiện cảnh báo *"NOT SUPPORTED YET!"*.
-    *   **Hướng giải quyết đợt tiếp theo**: Cần bổ sung các phương thức `saveGame()` và `loadGame()` trong lớp `CGAME` để xuất/nhập trạng thái game (tọa độ người chơi, hướng đi, các đối tượng quái vật/xe cộ hiện tại trên màn hình) ra tệp tin văn bản hoặc nhị phân.
-*   **Xử lý Tạm dừng phương tiện / Hệ thống Đèn giao thông (Yêu cầu 4.4 - 2 điểm)**:
-    *   **Hiện trạng**: Các phương tiện và quái vật hiện tại di chuyển liên tục qua lại không ngừng nghỉ. Chưa có lớp `CTRAFFICLIGHT` hay cơ chế đèn tín hiệu xanh/đỏ để tạm dừng xe cộ.
-    *   **Hướng giải quyết đợt tiếp theo**: Cần bổ sung lớp `CTRAFFICLIGHT` quản lý trạng thái đèn tín hiệu và liên kết vào luồng cập nhật của `CVEHICLE` để tạm dừng xe khi đèn đỏ.
-*   **Kỹ thuật Đa tiểu trình (Mục 3.3)**:
-    *   **Hiện trạng**: Phiên bản hiện tại sử dụng vòng lặp đơn tiểu trình regulated bằng delta-time (FPS cap ~60Hz) để tránh xung đột ngữ cảnh vẽ đồ họa của SDL3. Kỹ thuật chia luồng xử lý riêng biệt (`std::thread` chạy hàm cập nhật song song với luồng sự kiện chính) như trong hướng dẫn console chưa được triển khai.
-    *   **Hướng giải quyết đợt tiếp theo**: Xem xét tách luồng xử lý vật lý/cập nhật vị trí sang một thread phụ và đồng bộ hóa dữ liệu với thread render chính để đúng với yêu cầu đa luồng của đồ án.
-*   **Âm thanh & Hiệu ứng âm thanh khi va chạm (Yêu cầu 4.5 - 0.5 điểm)**:
-    *   **Hiện trạng**: Hệ thống âm thanh `SDL_mixer` mới chỉ được khởi tạo trong `CGAME::init()` nhưng chưa thực hiện nạp tệp âm thanh (WAV/MP3) và chưa có âm thanh va chạm hay tiếng kêu của quái vật (`CANIMAL::Tell()`). Hiệu ứng va chạm hiện tại mới chỉ dừng lại ở hiệu ứng hiển thị đỏ màn hình "YOU DIED".
-    *   **Hướng giải quyết đợt tiếp theo**: Cài đặt hàm `Tell()` phát ra âm thanh cho mỗi loài quái vật, nạp nhạc nền và phát hiệu ứng âm thanh nổ/va đập khi nhân vật bị tông trúng.
+    *   **Hiện trạng**: Chưa được triển khai. Phím `L` (Save), `T` (Load) và Menu `LOAD GAME` hiện đang cảnh báo *"NOT SUPPORTED YET!"*.
+    *   **Hướng giải quyết đợt tiếp theo**: Cần bổ sung các phương thức `saveGame()` và `loadGame()` trong lớp `CGAME` để xuất/nhập trạng thái game (tọa độ người chơi, hướng đi, các đối tượng quái vật/xe cộ hiện tại trên màn hình) ra tệp tin văn bản trong thư mục `saves/`.
 
 ---
 
-*Báo cáo này giúp bạn có cái nhìn tổng quan để hoàn thiện bản báo cáo tiến độ chi tiết gửi giảng viên chấm đồ án đợt 1.*
+*Báo cáo đã được cập nhật đầy đủ thông tin tính năng mới nhất.*
