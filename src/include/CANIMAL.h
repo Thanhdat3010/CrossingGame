@@ -27,6 +27,8 @@ public:
     int getY() const { return mY; }
     int getWidth() const { return mWidth; }
     int getHeight() const { return mHeight; }
+    int getSpeed() const { return mSpeed; }
+    int getDirection() const { return mDirection; }
     SDL_Texture* getTexture() const { return mTexture1; }
 
     SDL_FRect getHitbox() const {

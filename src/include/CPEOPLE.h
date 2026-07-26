@@ -31,6 +31,7 @@ public:
 
     void update(float deltaTime);
     void resetPosition();
+    void setPosition(int x, int y);
     void setCharacter(CharacterType type);
     void loadTextures(SDL_Renderer* renderer);
 

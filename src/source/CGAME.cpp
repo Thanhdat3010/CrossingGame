@@ -1269,6 +1269,7 @@ bool CGAME::saveGame(const std::string& filename) {
         std::lock_guard<std::mutex> lock(mGameMutex);
 
         outFile << "[HEADER]\n";
+        outFile << "version=1\n";
         outFile << "mode=" << (mIsInfinityMode ? 1 : 0) << "\n";
         outFile << "stage=" << mStage << "\n";
         outFile << "score=" << mScore << "\n";
@@ -1300,6 +1301,48 @@ bool CGAME::saveGame(const std::string& filename) {
             std::string typeStr = (mLanes[i].type == LaneType::REST) ? "REST" :
                                   (mLanes[i].type == LaneType::VEHICLE ? "VEHICLE" : "MONSTER");
             outFile << typeStr << " " << mLanes[i].worldY << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[BLUEWINGS]\n";
+        outFile << "count=" << mBluewings.size() << "\n";
+        for (auto bw : mBluewings) {
+            outFile << bw->getX() << " " << bw->getY() << " " << bw->getSpeed() << " " << bw->getDirection() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[SKYARMORS]\n";
+        outFile << "count=" << mSkyarmors.size() << "\n";
+        for (auto sa : mSkyarmors) {
+            outFile << sa->getX() << " " << sa->getY() << " " << sa->getSpeed() << " " << sa->getDirection() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[GLEAMEYES]\n";
+        outFile << "count=" << mGleameyes.size() << "\n";
+        for (auto ge : mGleameyes) {
+            outFile << ge->getX() << " " << ge->getY() << " " << ge->getSpeed() << " " << ge->getDirection() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[CHEATHCLIFFS]\n";
+        outFile << "count=" << mCheathcliffs.size() << "\n";
+        for (auto hc : mCheathcliffs) {
+            outFile << hc->getX() << " " << hc->getY() << " " << hc->getSpeed() << " " << hc->getDirection() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[CILLFANGS]\n";
+        outFile << "count=" << mCillfangs.size() << "\n";
+        for (auto cf : mCillfangs) {
+            outFile << cf->getX() << " " << cf->getY() << " " << cf->getSpeed() << " " << cf->getDirection() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[ICEDRAGONS]\n";
+        outFile << "count=" << mCicedragons.size() << "\n";
+        for (auto id : mCicedragons) {
+            outFile << id->getX() << " " << id->getY() << " " << id->getSpeed() << " " << id->getDirection() << "\n";
         }
         outFile << "\n";
 
@@ -1380,28 +1423,66 @@ bool CGAME::loadGame(const std::string& filename) {
                     mLanes.push_back({ lt, worldY });
                 }
             }
+            else if (currentSection == "[BLUEWINGS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CBLUEWING* bw = new CBLUEWING(x, y, speed, dir);
+                    bw->setTexture(mCbluewingTexture);
+                    mBluewings.push_back(bw);
+                }
+            }
+            else if (currentSection == "[SKYARMORS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CSKYARMOR* sa = new CSKYARMOR(x, y, speed, dir);
+                    sa->setTexture(mCskyarmorTexture);
+                    mSkyarmors.push_back(sa);
+                }
+            }
+            else if (currentSection == "[GLEAMEYES]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CGLEAMEYES* ge = new CGLEAMEYES(x, y, speed, dir);
+                    ge->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
+                    mGleameyes.push_back(ge);
+                }
+            }
+            else if (currentSection == "[CHEATHCLIFFS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CHEATHCLIFF* hc = new CHEATHCLIFF(x, y, speed, dir);
+                    hc->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
+                    mCheathcliffs.push_back(hc);
+                }
+            }
+            else if (currentSection == "[CILLFANGS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CILLFANG* cf = new CILLFANG(x, y, speed, dir);
+                    cf->setTextures(mCillfangTexture1, mCillfangTexture2);
+                    mCillfangs.push_back(cf);
+                }
+            }
+            else if (currentSection == "[ICEDRAGONS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int x = 0, y = 0, speed = 0, dir = 0;
+                if (ss >> x >> y >> speed >> dir) {
+                    CICEDRAGON* id = new CICEDRAGON(x, y, speed, dir);
+                    id->setTextures(mCicedragonTexture1, mCicedragonTexture2);
+                    mCicedragons.push_back(id);
+                }
+            }
         }
 
         mSelectedCharOption = charType;
         mPlayer.setCharacter(charType == 0 ? CPEOPLE::CharacterType::KIRITO : CPEOPLE::CharacterType::ASUNA);
-        mPlayer.resetPosition();
-        mPlayer.Up(playerY);
+        mPlayer.setPosition(playerX, playerY);
         mPlayer.setDead(playerState == 0);
-
-        if (mIsInfinityMode) {
-            if (mLanes.empty()) {
-                initInfiniteLanes();
-            } else {
-                for (const auto& lane : mLanes) {
-                    spawnObstaclesForLane(lane);
-                }
-            }
-        } else {
-            resetTutorial();
-            mPlayer.resetPosition();
-            mPlayer.Up(playerY);
-            mPlayer.setDead(playerState == 0);
-        }
 
         inFile.close();
         mState = GameState::PLAYING;

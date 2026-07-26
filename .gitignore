@@ -48,3 +48,6 @@ Release/
 *.lastbuildstate
 *.unsuccessfulbuild
 *.recipe
+
+# User Saves
+saves/*.txt

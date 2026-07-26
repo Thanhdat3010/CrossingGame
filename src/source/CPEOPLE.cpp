@@ -51,6 +51,14 @@ void CPEOPLE::resetPosition() {
     mAnimTimer = 0.0f;
 }
 
+void CPEOPLE::setPosition(int x, int y) {
+    mX = x;
+    mY = y;
+    mDrawX = (float)x;
+    mDrawY = (float)y;
+    mAnimTimer = 0.0f;
+}
+
 void CPEOPLE::Up(int limitY) {
     if (isDead()) return;
     mY -= mSpeed;
