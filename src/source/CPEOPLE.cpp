@@ -123,11 +123,6 @@ void CPEOPLE::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
         SDL_Color deadColor = {214, 40, 40, 255};
         font.drawText(renderer, "X", mX + 2, (int)((float)mY - cameraY), 4, deadColor);
     } else {
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(renderer, 80, 200, 255, 120);
-        SDL_FRect gridBox = { (float)mX, (float)mY - cameraY, (float)mWidth, (float)mHeight };
-        SDL_RenderRect(renderer, &gridBox);
-
         float scaleX = 1.0f;
         float scaleY = 1.0f;
         float offsetY = 0.0f;

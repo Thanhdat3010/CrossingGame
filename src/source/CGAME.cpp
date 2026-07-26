@@ -304,6 +304,30 @@ void CGAME::handleInput() {
                     }
                 }
             }
+            else if (mState == GameState::MENU) {
+                float menuPanelX = 240.0f, menuPanelW = 800.0f;
+                for (int i = 0; i < 4; ++i) {
+                    float yPos = 390.0f + (float)i * 55.0f;
+                    if (mx >= menuPanelX + 10 && mx <= menuPanelX + menuPanelW - 10 && my >= yPos - 5.0f && my <= yPos + 40.0f) {
+                        mSelectedMenuOption = i;
+                        if (i == 0) {
+                            startGame();
+                        } else if (i == 1) {
+                            scanSaveFiles();
+                            mSelectedLoadIndex = 0;
+                            mLoadPreviousState = GameState::MENU;
+                            mState = GameState::LOAD_DIALOG;
+                        } else if (i == 2) {
+                            mSettingsPreviousState = GameState::MENU;
+                            mSelectedSettingsOption = 0;
+                            mState = GameState::SETTINGS;
+                        } else if (i == 3) {
+                            mIsRunning = false;
+                        }
+                        break;
+                    }
+                }
+            }
         }
         else if (event.type == SDL_EVENT_KEY_DOWN) {
             SDL_Keycode key = event.key.key;
@@ -325,10 +349,10 @@ void CGAME::handleInput() {
             if (mState == GameState::MENU) {
                 // Điều khiển Menu bằng phím di chuyển
                 if (key == SDLK_W || key == SDLK_UP) {
-                    mSelectedMenuOption = (mSelectedMenuOption - 1 + 3) % 3;
+                    mSelectedMenuOption = (mSelectedMenuOption - 1 + 4) % 4;
                 }
                 else if (key == SDLK_S || key == SDLK_DOWN) {
-                    mSelectedMenuOption = (mSelectedMenuOption + 1) % 3;
+                    mSelectedMenuOption = (mSelectedMenuOption + 1) % 4;
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
                     if (mSelectedMenuOption == 0) {
@@ -342,6 +366,8 @@ void CGAME::handleInput() {
                         mSettingsPreviousState = GameState::MENU;
                         mSelectedSettingsOption = 0;
                         mState = GameState::SETTINGS;
+                    } else if (mSelectedMenuOption == 3) {
+                        mIsRunning = false;
                     }
                 }
             }
@@ -812,14 +838,15 @@ void CGAME::renderMenu() {
     SDL_Color normalColor  = {30, 60, 50, 255};
     SDL_Color selectColor  = {10, 95, 75, 255};
 
-    std::string menuOptions[3] = {
+    std::string menuOptions[4] = {
         "NEW GAME",
         "LOAD GAME",
-        "SETTINGS"
+        "SETTINGS",
+        "EXIT GAME"
     };
 
-    for (int i = 0; i < 3; ++i) {
-        int yPos = 410 + i * 65;
+    for (int i = 0; i < 4; ++i) {
+        int yPos = 390 + i * 55;
 
         if (mSelectedMenuOption == i) {
             SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
@@ -2200,8 +2227,8 @@ void CGAME::updateInfinite(float deltaTime) {
     }
 
     float screenY = (float)mPlayer.getY() - mCameraY;
-    if (screenY < 200.0f) {
-        mCameraY = (float)mPlayer.getY() - 200.0f;
+    if (screenY < 360.0f) {
+        mCameraY = (float)mPlayer.getY() - 360.0f;
     }
 
     screenY = (float)mPlayer.getY() - mCameraY;
