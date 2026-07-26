@@ -2,6 +2,9 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_mixer/SDL_mixer.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
 #include <cmath> // Dùng cho sin() tạo animation nhấp nháy
 
 namespace {
@@ -85,6 +88,8 @@ CGAME::CGAME()
       mStage(1), mIsInfinityMode(false),
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
+      mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
+      mInputSaveName("save1"), mIsTypingNewSaveName(false),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
@@ -247,8 +252,9 @@ void CGAME::handleInput() {
                     if (mSelectedMenuOption == 0) {
                         startGame();
                     } else if (mSelectedMenuOption == 1) {
-                        mShowMenuWarning = true;
-                        mWarningTimer = 2.5f;
+                        scanSaveFiles();
+                        mSelectedLoadIndex = 0;
+                        mState = GameState::LOAD_DIALOG;
                     } else if (mSelectedMenuOption == 2) {
                         mState = GameState::SETTINGS;
                     }
@@ -307,44 +313,139 @@ void CGAME::handleInput() {
                     mState = GameState::MENU;
                 }
             }
-            else if (mState == GameState::PLAYING) {
-                std::lock_guard<std::mutex> lock(mGameMutex);
-                int topLimit = 40;
-                int bottomLimit = 600;
-                if (mIsInfinityMode) {
-                    topLimit = (int)mCameraY + 40;
-                    bottomLimit = (int)mCameraY + 600;
+            else if (mState == GameState::PAUSED) {
+                if (key == SDLK_W || key == SDLK_UP) {
+                    mSelectedPauseOption = (mSelectedPauseOption - 1 + 5) % 5;
                 }
-
-                bool moved = false;
-                // Bắt buộc bấm nhả từng phím (không cho đè phím để di chuyển liên tục)
-                if (!event.key.repeat) {
+                else if (key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedPauseOption = (mSelectedPauseOption + 1) % 5;
+                }
+                else if (key == SDLK_RETURN || key == SDLK_SPACE) {
+                    if (mSelectedPauseOption == 0) {
+                        mState = GameState::PLAYING;
+                    } else if (mSelectedPauseOption == 1) {
+                        scanSaveFiles();
+                        mSelectedSaveIndex = 0;
+                        mState = GameState::SAVE_DIALOG;
+                    } else if (mSelectedPauseOption == 2) {
+                        scanSaveFiles();
+                        mSelectedLoadIndex = 0;
+                        mState = GameState::LOAD_DIALOG;
+                    } else if (mSelectedPauseOption == 3) {
+                        mSelectedSettingsOption = 0;
+                        mState = GameState::SETTINGS;
+                    } else if (mSelectedPauseOption == 4) {
+                        mState = GameState::MENU;
+                    }
+                }
+                else if (key == SDLK_P || key == SDLK_ESCAPE) {
+                    mState = GameState::PLAYING;
+                }
+            }
+            else if (mState == GameState::SAVE_DIALOG) {
+                int totalItems = (int)mSaveFilesList.size() + 1;
+                if (key == SDLK_W || key == SDLK_UP) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex - 1 + totalItems) % totalItems;
+                }
+                else if (key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex + 1) % totalItems;
+                }
+                else if (key == SDLK_BACKSPACE && mSelectedSaveIndex == 0) {
+                    if (!mInputSaveName.empty()) mInputSaveName.pop_back();
+                }
+                else if (key >= SDLK_A && key <= SDLK_Z && mSelectedSaveIndex == 0) {
+                    if (mInputSaveName.length() < 16) {
+                        char c = (char)('a' + (key - SDLK_A));
+                        mInputSaveName += c;
+                    }
+                }
+                else if (key >= SDLK_0 && key <= SDLK_9 && mSelectedSaveIndex == 0) {
+                    if (mInputSaveName.length() < 16) {
+                        char c = (char)('0' + (key - SDLK_0));
+                        mInputSaveName += c;
+                    }
+                }
+                else if (key == SDLK_RETURN || key == SDLK_SPACE) {
+                    std::string saveName = (mSelectedSaveIndex == 0) ? mInputSaveName : mSaveFilesList[mSelectedSaveIndex - 1];
+                    if (saveGame(saveName)) {
+                        mState = GameState::PLAYING;
+                    }
+                }
+                else if (key == SDLK_ESCAPE) {
+                    mState = GameState::PAUSED;
+                }
+            }
+            else if (mState == GameState::LOAD_DIALOG) {
+                int totalItems = (int)mSaveFilesList.size();
+                if (totalItems > 0) {
                     if (key == SDLK_W || key == SDLK_UP) {
-                        mPlayer.Up(topLimit);
-                        moved = true;
+                        mSelectedLoadIndex = (mSelectedLoadIndex - 1 + totalItems) % totalItems;
                     }
                     else if (key == SDLK_S || key == SDLK_DOWN) {
-                        mPlayer.Down(bottomLimit);
-                        moved = true;
+                        mSelectedLoadIndex = (mSelectedLoadIndex + 1) % totalItems;
                     }
-                    else if (key == SDLK_A || key == SDLK_LEFT) {
-                        mPlayer.Left(0); // Biên trái
-                        moved = true;
-                    }
-                    else if (key == SDLK_D || key == SDLK_RIGHT) {
-                        mPlayer.Right(1280 - mPlayer.getWidth()); // Biên phải
-                        moved = true;
+                    else if (key == SDLK_RETURN || key == SDLK_SPACE) {
+                        loadGame(mSaveFilesList[mSelectedLoadIndex]);
                     }
                 }
-
-                if (moved) {
-                    if (!mSfxMuted && mMixer && mSfxJump) {
-                        MIX_PlayAudio(mMixer, mSfxJump);
-                    }
-                }
-
                 if (key == SDLK_ESCAPE) {
                     mState = GameState::MENU;
+                }
+            }
+            else if (mState == GameState::PLAYING) {
+                std::lock_guard<std::mutex> lock(mGameMutex);
+
+                if (!event.key.repeat) {
+                    if (key == SDLK_P) {
+                        mSelectedPauseOption = 0;
+                        mState = GameState::PAUSED;
+                    }
+                    else if (key == SDLK_L) {
+                        scanSaveFiles();
+                        mSelectedSaveIndex = 0;
+                        mState = GameState::SAVE_DIALOG;
+                    }
+                    else if (key == SDLK_T) {
+                        scanSaveFiles();
+                        mSelectedLoadIndex = 0;
+                        mState = GameState::LOAD_DIALOG;
+                    }
+                    else if (key == SDLK_ESCAPE) {
+                        mSelectedPauseOption = 0;
+                        mState = GameState::PAUSED;
+                    }
+                    else {
+                        int topLimit = 40;
+                        int bottomLimit = 600;
+                        if (mIsInfinityMode) {
+                            topLimit = (int)mCameraY + 40;
+                            bottomLimit = (int)mCameraY + 600;
+                        }
+
+                        bool moved = false;
+                        if (key == SDLK_W || key == SDLK_UP) {
+                            mPlayer.Up(topLimit);
+                            moved = true;
+                        }
+                        else if (key == SDLK_S || key == SDLK_DOWN) {
+                            mPlayer.Down(bottomLimit);
+                            moved = true;
+                        }
+                        else if (key == SDLK_A || key == SDLK_LEFT) {
+                            mPlayer.Left(0);
+                            moved = true;
+                        }
+                        else if (key == SDLK_D || key == SDLK_RIGHT) {
+                            mPlayer.Right(1280 - mPlayer.getWidth());
+                            moved = true;
+                        }
+
+                        if (moved) {
+                            if (!mSfxMuted && mMixer && mSfxJump) {
+                                MIX_PlayAudio(mMixer, mSfxJump);
+                            }
+                        }
+                    }
                 }
             }
             else if (mState == GameState::GAMEOVER) {
@@ -468,6 +569,18 @@ void CGAME::render() {
     }
     else if (mState == GameState::SETTINGS) {
         renderSettings();
+    }
+    else if (mState == GameState::PAUSED) {
+        renderPlaying();
+        renderPauseMenu();
+    }
+    else if (mState == GameState::SAVE_DIALOG) {
+        renderPlaying();
+        renderSaveDialog();
+    }
+    else if (mState == GameState::LOAD_DIALOG) {
+        renderMenuBackground();
+        renderLoadDialog();
     }
     else if (mState == GameState::PLAYING || mState == GameState::GAMEOVER) {
         renderPlaying();
@@ -904,6 +1017,382 @@ void CGAME::renderSettings() {
 
     SDL_Color guideColor = {255, 255, 255, 200};
     mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC TO RETURN", 635, 1, guideColor);
+}
+
+void CGAME::renderPauseMenu() {
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 130);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "GAME PAUSED", 98, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "GAME PAUSED", 96, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "SYSTEM & GAME CONTROL OPTIONS", 146, 2, subtitleColor);
+
+    float panelX = 340.0f, panelY = 200.0f;
+    float panelW = 600.0f, panelH = 430.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 175);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    std::string options[5] = {
+        "1. RESUME GAME",
+        "2. SAVE GAME  (L)",
+        "3. LOAD GAME  (T)",
+        "4. SETTINGS",
+        "5. MAIN MENU"
+    };
+
+    SDL_Color normalColor = {30, 60, 50, 255};
+    SDL_Color selectColor = {10, 95, 75, 255};
+
+    for (int i = 0; i < 5; ++i) {
+        int yPos = 245 + i * 65;
+
+        if (mSelectedPauseOption == i) {
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 12, panelW - 40, 50.0f };
+            SDL_RenderFillRect(mRenderer, &highlight);
+
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 12, 4.0f, 50.0f };
+            SDL_RenderFillRect(mRenderer, &hlBorder);
+
+            float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, selectColor);
+        } else {
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, normalColor);
+        }
+    }
+
+    SDL_Color guideColor = {255, 255, 255, 200};
+    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER TO CHOOSE  -  P / ESC TO RESUME", 655, 1, guideColor);
+}
+
+void CGAME::renderSaveDialog() {
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 130);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "SAVE GAME", 98, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "SAVE GAME", 96, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "SELECT OR ENTER SAVE FILE NAME", 146, 2, subtitleColor);
+
+    float panelX = 240.0f, panelY = 210.0f;
+    float panelW = 800.0f, panelH = 430.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 175);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    SDL_Color normalColor = {30, 60, 50, 255};
+    SDL_Color selectColor = {10, 95, 75, 255};
+
+    int startY = 250;
+    std::string newFileLabel = "NEW SAVE : [ " + mInputSaveName + " ]";
+    if (mSelectedSaveIndex == 0) {
+        SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+        SDL_FRect highlight = { panelX + 20, (float)startY - 10, panelW - 40, 48.0f };
+        SDL_RenderFillRect(mRenderer, &highlight);
+
+        SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+        SDL_FRect hlBorder = { panelX + 20, (float)startY - 10, 4.0f, 48.0f };
+        SDL_RenderFillRect(mRenderer, &hlBorder);
+
+        float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+        mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), startY, 3, selectColor);
+        mFont.drawText(mRenderer, newFileLabel, (int)(panelX + 80), startY, 3, selectColor);
+    } else {
+        mFont.drawText(mRenderer, newFileLabel, (int)(panelX + 80), startY, 3, normalColor);
+    }
+
+    for (size_t i = 0; i < mSaveFilesList.size() && i < 4; ++i) {
+        int yPos = startY + (int)(i + 1) * 55;
+        std::string fileLabel = "OVERWRITE : " + mSaveFilesList[i];
+
+        if (mSelectedSaveIndex == (int)(i + 1)) {
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 48.0f };
+            SDL_RenderFillRect(mRenderer, &highlight);
+
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 48.0f };
+            SDL_RenderFillRect(mRenderer, &hlBorder);
+
+            float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, selectColor);
+        } else {
+            mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
+        }
+    }
+
+    SDL_Color guideColor = {255, 255, 255, 200};
+    mFont.drawTextCentered(mRenderer, "TYPE NAME / W-S TO SELECT  -  ENTER TO SAVE  -  ESC TO BACK", 655, 1, guideColor);
+}
+
+void CGAME::renderLoadDialog() {
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 130);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    SDL_Color titleShadow = {0, 0, 0, 80};
+    SDL_Color titleColor = {255, 255, 255, 255};
+    SDL_Color subtitleColor = {220, 245, 255, 255};
+    mFont.drawTextCentered(mRenderer, "LOAD GAME", 98, 4, titleShadow);
+    mFont.drawTextCentered(mRenderer, "LOAD GAME", 96, 4, titleColor);
+    mFont.drawTextCentered(mRenderer, "SELECT A SAVED GAME FILE TO RESUME", 146, 2, subtitleColor);
+
+    float panelX = 240.0f, panelY = 210.0f;
+    float panelW = 800.0f, panelH = 430.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 175);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 80, 200);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 3.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 3, panelW, 3.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 3.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 3, panelY, 3.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    SDL_Color normalColor = {30, 60, 50, 255};
+    SDL_Color selectColor = {10, 95, 75, 255};
+
+    if (mSaveFilesList.empty()) {
+        mFont.drawTextCentered(mRenderer, "NO SAVE FILES FOUND IN saves/ FOLDER!", 380, 2, selectColor);
+    } else {
+        int startY = 250;
+        for (size_t i = 0; i < mSaveFilesList.size() && i < 5; ++i) {
+            int yPos = startY + (int)i * 60;
+            std::string fileLabel = "LOAD FILE : " + mSaveFilesList[i];
+
+            if (mSelectedLoadIndex == (int)i) {
+                SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+                SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 50.0f };
+                SDL_RenderFillRect(mRenderer, &highlight);
+
+                SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+                SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 50.0f };
+                SDL_RenderFillRect(mRenderer, &hlBorder);
+
+                float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+                mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
+                mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, selectColor);
+            } else {
+                mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
+            }
+        }
+    }
+
+    SDL_Color guideColor = {255, 255, 255, 200};
+    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER TO LOAD  -  ESC TO BACK", 655, 1, guideColor);
+}
+
+std::vector<std::string> CGAME::scanSaveFiles() {
+    std::vector<std::string> files;
+    try {
+        std::filesystem::create_directories("saves");
+        for (const auto& entry : std::filesystem::directory_iterator("saves")) {
+            if (entry.is_regular_file() && entry.path().extension() == ".txt") {
+                files.push_back(entry.path().filename().string());
+            }
+        }
+    } catch (...) {}
+    mSaveFilesList = files;
+    return files;
+}
+
+bool CGAME::saveGame(const std::string& filename) {
+    if (filename.empty()) return false;
+
+    std::string actualName = filename;
+    if (actualName.find(".txt") == std::string::npos) {
+        actualName += ".txt";
+    }
+
+    try {
+        std::filesystem::create_directories("saves");
+        std::ofstream outFile("saves/" + actualName);
+        if (!outFile.is_open()) return false;
+
+        std::lock_guard<std::mutex> lock(mGameMutex);
+
+        outFile << "[HEADER]\n";
+        outFile << "mode=" << (mIsInfinityMode ? 1 : 0) << "\n";
+        outFile << "stage=" << mStage << "\n";
+        outFile << "score=" << mScore << "\n";
+        outFile << "max_reached_y=" << mMaxReachedY << "\n";
+        outFile << "camera_y=" << mCameraY << "\n";
+        outFile << "infinite_level=" << mInfiniteLevel << "\n";
+        outFile << "lane_pattern_index=" << mLanePatternIndex << "\n\n";
+
+        outFile << "[PLAYER]\n";
+        outFile << "char_type=" << mSelectedCharOption << "\n";
+        outFile << "x=" << mPlayer.getX() << "\n";
+        outFile << "y=" << mPlayer.getY() << "\n";
+        outFile << "state=" << (mPlayer.isDead() ? 0 : 1) << "\n\n";
+
+        outFile << "[TRAFFIC_LIGHTS]\n";
+        outFile << "count=" << mTrafficLights.size() << "\n";
+        for (size_t i = 0; i < mTrafficLights.size(); ++i) {
+            outFile << mTrafficLights[i].getLaneY() << " "
+                    << (mTrafficLights[i].isRed() ? 1 : 0) << " "
+                    << mTrafficLights[i].getTimer() << " "
+                    << mTrafficLights[i].getRedDuration() << " "
+                    << mTrafficLights[i].getGreenDuration() << "\n";
+        }
+        outFile << "\n";
+
+        outFile << "[LANES]\n";
+        outFile << "count=" << mLanes.size() << "\n";
+        for (size_t i = 0; i < mLanes.size(); ++i) {
+            std::string typeStr = (mLanes[i].type == LaneType::REST) ? "REST" :
+                                  (mLanes[i].type == LaneType::VEHICLE ? "VEHICLE" : "MONSTER");
+            outFile << typeStr << " " << mLanes[i].worldY << "\n";
+        }
+        outFile << "\n";
+
+        outFile.close();
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool CGAME::loadGame(const std::string& filename) {
+    std::string fullPath = "saves/" + filename;
+    if (!std::filesystem::exists(fullPath)) return false;
+
+    try {
+        std::ifstream inFile(fullPath);
+        if (!inFile.is_open()) return false;
+
+        std::lock_guard<std::mutex> lock(mGameMutex);
+
+        clearObstacles();
+        mTrafficLights.clear();
+        mLanes.clear();
+
+        std::string line;
+        std::string currentSection = "";
+
+        int charType = 0;
+        int playerX = 600, playerY = 600, playerState = 1;
+
+        while (std::getline(inFile, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            if (line[0] == '[') {
+                currentSection = line;
+                continue;
+            }
+
+            std::stringstream ss(line);
+            if (currentSection == "[HEADER]") {
+                std::string key, val;
+                if (std::getline(ss, key, '=') && std::getline(ss, val)) {
+                    if (key == "mode") mIsInfinityMode = (std::stoi(val) == 1);
+                    else if (key == "stage") mStage = std::stoi(val);
+                    else if (key == "score") mScore = std::stoi(val);
+                    else if (key == "max_reached_y") mMaxReachedY = std::stoi(val);
+                    else if (key == "camera_y") mCameraY = std::stof(val);
+                    else if (key == "infinite_level") mInfiniteLevel = std::stoi(val);
+                    else if (key == "lane_pattern_index") mLanePatternIndex = std::stoi(val);
+                }
+            }
+            else if (currentSection == "[PLAYER]") {
+                std::string key, val;
+                if (std::getline(ss, key, '=') && std::getline(ss, val)) {
+                    if (key == "char_type") charType = std::stoi(val);
+                    else if (key == "x") playerX = std::stoi(val);
+                    else if (key == "y") playerY = std::stoi(val);
+                    else if (key == "state") playerState = std::stoi(val);
+                }
+            }
+            else if (currentSection == "[TRAFFIC_LIGHTS]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                int laneY = 0, isRedInt = 0;
+                float timer = 0.0f, redDur = 3.0f, greenDur = 5.0f;
+                if (ss >> laneY >> isRedInt >> timer >> redDur >> greenDur) {
+                    CTRAFFICLIGHT light(laneY, redDur, greenDur);
+                    light.initTextures(mRenderer);
+                    light.setState(isRedInt == 1, timer);
+                    mTrafficLights.push_back(light);
+                }
+            }
+            else if (currentSection == "[LANES]") {
+                if (line.rfind("count=", 0) == 0) continue;
+                std::string typeStr;
+                int worldY = 0;
+                if (ss >> typeStr >> worldY) {
+                    LaneType lt = (typeStr == "REST") ? LaneType::REST :
+                                 (typeStr == "VEHICLE" ? LaneType::VEHICLE : LaneType::MONSTER);
+                    mLanes.push_back({ lt, worldY });
+                }
+            }
+        }
+
+        mSelectedCharOption = charType;
+        mPlayer.setCharacter(charType == 0 ? CPEOPLE::CharacterType::KIRITO : CPEOPLE::CharacterType::ASUNA);
+        mPlayer.resetPosition();
+        mPlayer.Up(playerY);
+        mPlayer.setDead(playerState == 0);
+
+        if (mIsInfinityMode) {
+            if (mLanes.empty()) {
+                initInfiniteLanes();
+            } else {
+                for (const auto& lane : mLanes) {
+                    spawnObstaclesForLane(lane);
+                }
+            }
+        } else {
+            resetTutorial();
+            mPlayer.resetPosition();
+            mPlayer.Up(playerY);
+            mPlayer.setDead(playerState == 0);
+        }
+
+        inFile.close();
+        mState = GameState::PLAYING;
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 void CGAME::renderPlaying() {

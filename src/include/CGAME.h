@@ -26,6 +26,8 @@ enum class GameState {
     SETTINGS,
     PLAYING,
     PAUSED,
+    SAVE_DIALOG,
+    LOAD_DIALOG,
     GAMEOVER
 };
 
@@ -91,6 +93,13 @@ private:
     int mSelectedCharOption;
     int mSelectedStageOption;
     int mSelectedSettingsOption;
+    int mSelectedPauseOption;
+    int mSelectedSaveIndex;
+    int mSelectedLoadIndex;
+
+    std::vector<std::string> mSaveFilesList;
+    std::string mInputSaveName;
+    bool mIsTypingNewSaveName;
 
     int mScore;
     int mMaxReachedY;
@@ -123,9 +132,16 @@ private:
     void renderCharSelect();
     void renderStageSelect();
     void renderSettings();
+    void renderPauseMenu();
+    void renderSaveDialog();
+    void renderLoadDialog();
     void renderPlaying();
     void toggleMusic();
     void toggleSfx();
+
+    bool saveGame(const std::string& filename);
+    bool loadGame(const std::string& filename);
+    std::vector<std::string> scanSaveFiles();
 
     void clearObstacles();
 
