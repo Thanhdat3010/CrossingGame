@@ -91,6 +91,7 @@ CGAME::CGAME()
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
       mSettingsPreviousState(GameState::MENU),
       mInputSaveName("save1"), mIsTypingNewSaveName(false),
+      mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
@@ -238,8 +239,87 @@ void CGAME::handleInput() {
         if (event.type == SDL_EVENT_QUIT) {
             mIsRunning = false;
         }
+        else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+            float mx = (float)event.button.x;
+            float my = (float)event.button.y;
+
+            if (!mPendingDeleteFileName.empty()) {
+                // Click YES [Y] button
+                if (mx >= 400.0f && mx <= 580.0f && my >= 415.0f && my <= 463.0f) {
+                    std::filesystem::remove("saves/" + mPendingDeleteFileName);
+                    mPendingDeleteFileName = "";
+                    scanSaveFiles();
+                    if (mSelectedSaveIndex >= (int)mSaveFilesList.size() + 1) mSelectedSaveIndex = (int)mSaveFilesList.size();
+                    if (mSelectedLoadIndex >= (int)mSaveFilesList.size()) mSelectedLoadIndex = std::max(0, (int)mSaveFilesList.size() - 1);
+                }
+                // Click CANCEL [N] button
+                else if (mx >= 700.0f && mx <= 880.0f && my >= 415.0f && my <= 463.0f) {
+                    mPendingDeleteFileName = "";
+                }
+                continue;
+            }
+
+            float panelX = 240.0f, panelW = 800.0f;
+            if (mState == GameState::SAVE_DIALOG) {
+                // Row 0: NEW SAVE
+                if (mx >= panelX + 20 && mx <= panelX + panelW - 40 && my >= 240.0f && my <= 288.0f) {
+                    mSelectedSaveIndex = 0;
+                }
+                // Existing files
+                for (size_t i = 0; i < mSaveFilesList.size() && i < 4; ++i) {
+                    float yPos = 250.0f + (float)(i + 1) * 55.0f;
+                    float btnX = panelX + panelW - 90.0f;
+                    float btnY = yPos - 8.0f;
+
+                    // Click Red [X] Delete Button
+                    if (mx >= btnX && mx <= btnX + 60.0f && my >= btnY && my <= btnY + 40.0f) {
+                        mPendingDeleteFileName = mSaveFilesList[i];
+                        mDeleteReturnState = GameState::SAVE_DIALOG;
+                        break;
+                    }
+                    // Click Row to Select
+                    else if (mx >= panelX + 20 && mx <= btnX - 10.0f && my >= yPos - 10.0f && my <= yPos + 38.0f) {
+                        mSelectedSaveIndex = (int)(i + 1);
+                        break;
+                    }
+                }
+            }
+            else if (mState == GameState::LOAD_DIALOG) {
+                for (size_t i = 0; i < mSaveFilesList.size() && i < 5; ++i) {
+                    float yPos = 250.0f + (float)i * 60.0f;
+                    float btnX = panelX + panelW - 90.0f;
+                    float btnY = yPos - 8.0f;
+
+                    // Click Red [X] Delete Button
+                    if (mx >= btnX && mx <= btnX + 60.0f && my >= btnY && my <= btnY + 40.0f) {
+                        mPendingDeleteFileName = mSaveFilesList[i];
+                        mDeleteReturnState = GameState::LOAD_DIALOG;
+                        break;
+                    }
+                    // Click Row to Select
+                    else if (mx >= panelX + 20 && mx <= btnX - 10.0f && my >= yPos - 10.0f && my <= yPos + 40.0f) {
+                        mSelectedLoadIndex = (int)i;
+                        break;
+                    }
+                }
+            }
+        }
         else if (event.type == SDL_EVENT_KEY_DOWN) {
             SDL_Keycode key = event.key.key;
+
+            if (!mPendingDeleteFileName.empty()) {
+                if (key == SDLK_Y) {
+                    std::filesystem::remove("saves/" + mPendingDeleteFileName);
+                    mPendingDeleteFileName = "";
+                    scanSaveFiles();
+                    if (mSelectedSaveIndex >= (int)mSaveFilesList.size() + 1) mSelectedSaveIndex = (int)mSaveFilesList.size();
+                    if (mSelectedLoadIndex >= (int)mSaveFilesList.size()) mSelectedLoadIndex = std::max(0, (int)mSaveFilesList.size() - 1);
+                }
+                else if (key == SDLK_N || key == SDLK_ESCAPE) {
+                    mPendingDeleteFileName = "";
+                }
+                continue;
+            }
 
             if (mState == GameState::MENU) {
                 // Điều khiển Menu bằng phím di chuyển
@@ -348,11 +428,22 @@ void CGAME::handleInput() {
             }
             else if (mState == GameState::SAVE_DIALOG) {
                 int totalItems = (int)mSaveFilesList.size() + 1;
-                if (key == SDLK_W || key == SDLK_UP) {
+                
+                if (key == SDLK_UP) {
                     mSelectedSaveIndex = (mSelectedSaveIndex - 1 + totalItems) % totalItems;
                 }
-                else if (key == SDLK_S || key == SDLK_DOWN) {
+                else if (key == SDLK_DOWN) {
                     mSelectedSaveIndex = (mSelectedSaveIndex + 1) % totalItems;
+                }
+                else if (mSelectedSaveIndex != 0 && key == SDLK_W) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex - 1 + totalItems) % totalItems;
+                }
+                else if (mSelectedSaveIndex != 0 && key == SDLK_S) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex + 1) % totalItems;
+                }
+                else if (key == SDLK_DELETE && mSelectedSaveIndex > 0 && mSelectedSaveIndex - 1 < (int)mSaveFilesList.size()) {
+                    mPendingDeleteFileName = mSaveFilesList[mSelectedSaveIndex - 1];
+                    mDeleteReturnState = GameState::SAVE_DIALOG;
                 }
                 else if (key == SDLK_BACKSPACE && mSelectedSaveIndex == 0) {
                     if (!mInputSaveName.empty()) mInputSaveName.pop_back();
@@ -387,6 +478,10 @@ void CGAME::handleInput() {
                     }
                     else if (key == SDLK_S || key == SDLK_DOWN) {
                         mSelectedLoadIndex = (mSelectedLoadIndex + 1) % totalItems;
+                    }
+                    else if (key == SDLK_DELETE && mSelectedLoadIndex < (int)mSaveFilesList.size()) {
+                        mPendingDeleteFileName = mSaveFilesList[mSelectedLoadIndex];
+                        mDeleteReturnState = GameState::LOAD_DIALOG;
                     }
                     else if (key == SDLK_RETURN || key == SDLK_SPACE) {
                         loadGame(mSaveFilesList[mSelectedLoadIndex]);
@@ -585,6 +680,10 @@ void CGAME::render() {
     else if (mState == GameState::LOAD_DIALOG) {
         renderMenuBackground();
         renderLoadDialog();
+    }
+
+    if (!mPendingDeleteFileName.empty()) {
+        renderDeleteConfirmDialog();
     }
     else if (mState == GameState::PLAYING || mState == GameState::GAMEOVER) {
         renderPlaying();
@@ -1170,10 +1269,23 @@ void CGAME::renderSaveDialog() {
         } else {
             mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
         }
+
+        // Red [X] Delete Button
+        float btnX = panelX + panelW - 90.0f;
+        float btnY = (float)yPos - 8.0f;
+        SDL_SetRenderDrawColor(mRenderer, 220, 40, 40, 220);
+        SDL_FRect delBtn = { btnX, btnY, 60.0f, 40.0f };
+        SDL_RenderFillRect(mRenderer, &delBtn);
+
+        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
+        SDL_RenderRect(mRenderer, &delBtn);
+
+        SDL_Color whiteCol = { 255, 255, 255, 255 };
+        mFont.drawText(mRenderer, "X", (int)btnX + 22, (int)btnY + 6, 2, whiteCol);
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "TYPE NAME / W-S TO SELECT  -  ENTER TO SAVE  -  ESC TO BACK", 655, 1, guideColor);
+    mFont.drawTextCentered(mRenderer, "TYPE NAME / ARROWS TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE", 655, 1, guideColor);
 }
 
 void CGAME::renderLoadDialog() {
@@ -1232,11 +1344,73 @@ void CGAME::renderLoadDialog() {
             } else {
                 mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
             }
+
+            // Red [X] Delete Button
+            float btnX = panelX + panelW - 90.0f;
+            float btnY = (float)yPos - 8.0f;
+            SDL_SetRenderDrawColor(mRenderer, 220, 40, 40, 220);
+            SDL_FRect delBtn = { btnX, btnY, 60.0f, 40.0f };
+            SDL_RenderFillRect(mRenderer, &delBtn);
+
+            SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
+            SDL_RenderRect(mRenderer, &delBtn);
+
+            SDL_Color whiteCol = { 255, 255, 255, 255 };
+            mFont.drawText(mRenderer, "X", (int)btnX + 22, (int)btnY + 6, 2, whiteCol);
         }
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER TO LOAD  -  ESC TO BACK", 655, 1, guideColor);
+    mFont.drawTextCentered(mRenderer, "UP/DOWN TO SELECT  -  ENTER TO LOAD  -  DEL / [X] TO DELETE", 655, 1, guideColor);
+}
+
+void CGAME::renderDeleteConfirmDialog() {
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 180);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    float panelX = 340.0f, panelY = 220.0f;
+    float panelW = 600.0f, panelH = 280.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 255, 240, 240, 245);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 214, 40, 40, 255);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 4.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 4, panelW, 4.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 4.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 4, panelY, 4.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    SDL_Color titleColor = { 180, 20, 20, 255 };
+    SDL_Color msgColor = { 40, 40, 40, 255 };
+    SDL_Color fileColor = { 20, 100, 150, 255 };
+    SDL_Color warnColor = { 200, 30, 30, 255 };
+
+    mFont.drawTextCentered(mRenderer, "DELETE SAVE FILE", (int)panelY + 25, 3, titleColor);
+    mFont.drawTextCentered(mRenderer, "ARE YOU SURE YOU WANT TO DELETE:", (int)panelY + 75, 2, msgColor);
+    
+    std::string fileStr = "[ " + mPendingDeleteFileName + " ]";
+    mFont.drawTextCentered(mRenderer, fileStr, (int)panelY + 115, 2, fileColor);
+    mFont.drawTextCentered(mRenderer, "THIS ACTION CANNOT BE UNDONE!", (int)panelY + 155, 1, warnColor);
+
+    // Nút YES [Y]
+    SDL_SetRenderDrawColor(mRenderer, 200, 40, 40, 255);
+    SDL_FRect btnYes = { 400.0f, panelY + 195.0f, 180.0f, 48.0f };
+    SDL_RenderFillRect(mRenderer, &btnYes);
+    SDL_Color btnTextCol = { 255, 255, 255, 255 };
+    mFont.drawTextCentered(mRenderer, "[ Y ] YES", (int)panelY + 210, 2, btnTextCol);
+
+    // Nút CANCEL [N]
+    SDL_SetRenderDrawColor(mRenderer, 80, 100, 90, 255);
+    SDL_FRect btnNo = { 700.0f, panelY + 195.0f, 180.0f, 48.0f };
+    SDL_RenderFillRect(mRenderer, &btnNo);
+    mFont.drawTextCentered(mRenderer, "[ N ] CANCEL", (int)panelY + 210, 2, btnTextCol);
 }
 
 std::vector<std::string> CGAME::scanSaveFiles() {

@@ -102,6 +102,8 @@ private:
     std::vector<std::string> mSaveFilesList;
     std::string mInputSaveName;
     bool mIsTypingNewSaveName;
+    std::string mPendingDeleteFileName;
+    GameState mDeleteReturnState;
 
     int mScore;
     int mMaxReachedY;
@@ -137,6 +139,7 @@ private:
     void renderPauseMenu();
     void renderSaveDialog();
     void renderLoadDialog();
+    void renderDeleteConfirmDialog();
     void renderPlaying();
     void toggleMusic();
     void toggleSfx();
