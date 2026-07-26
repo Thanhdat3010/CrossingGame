@@ -2232,12 +2232,12 @@ void CGAME::updateInfinite(float deltaTime) {
     }
     pruneLanes();
 
-    pruneObstacleList(mGleameyes, mCameraY, -200.0f, 820.0f);
-    pruneObstacleList(mCheathcliffs, mCameraY, -200.0f, 820.0f);
-    pruneObstacleList(mCillfangs, mCameraY, -200.0f, 820.0f);
-    pruneObstacleList(mCicedragons, mCameraY, -200.0f, 820.0f);
-    pruneObstacleList(mBluewings, mCameraY, -200.0f, 820.0f);
-    pruneObstacleList(mSkyarmors, mCameraY, -200.0f, 820.0f);
+    pruneObstacleList(mGleameyes, mCameraY, -400.0f, 880.0f);
+    pruneObstacleList(mCheathcliffs, mCameraY, -400.0f, 880.0f);
+    pruneObstacleList(mCillfangs, mCameraY, -400.0f, 880.0f);
+    pruneObstacleList(mCicedragons, mCameraY, -400.0f, 880.0f);
+    pruneObstacleList(mBluewings, mCameraY, -400.0f, 880.0f);
+    pruneObstacleList(mSkyarmors, mCameraY, -400.0f, 880.0f);
 
     if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
         hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
