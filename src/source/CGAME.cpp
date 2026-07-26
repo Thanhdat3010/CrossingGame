@@ -89,6 +89,7 @@ CGAME::CGAME()
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
+      mSettingsPreviousState(GameState::MENU),
       mInputSaveName("save1"), mIsTypingNewSaveName(false),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
@@ -256,6 +257,8 @@ void CGAME::handleInput() {
                         mSelectedLoadIndex = 0;
                         mState = GameState::LOAD_DIALOG;
                     } else if (mSelectedMenuOption == 2) {
+                        mSettingsPreviousState = GameState::MENU;
+                        mSelectedSettingsOption = 0;
                         mState = GameState::SETTINGS;
                     }
                 }
@@ -310,7 +313,7 @@ void CGAME::handleInput() {
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
-                    mState = GameState::MENU;
+                    mState = mSettingsPreviousState;
                 }
             }
             else if (mState == GameState::PAUSED) {
@@ -332,6 +335,7 @@ void CGAME::handleInput() {
                         mSelectedLoadIndex = 0;
                         mState = GameState::LOAD_DIALOG;
                     } else if (mSelectedPauseOption == 3) {
+                        mSettingsPreviousState = GameState::PAUSED;
                         mSelectedSettingsOption = 0;
                         mState = GameState::SETTINGS;
                     } else if (mSelectedPauseOption == 4) {
@@ -960,7 +964,15 @@ void CGAME::toggleSfx() {
 }
 
 void CGAME::renderSettings() {
-    renderMenuBackground();
+    if (mSettingsPreviousState == GameState::PAUSED) {
+        renderPlaying();
+        SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 130);
+        SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+        SDL_RenderFillRect(mRenderer, &overlay);
+    } else {
+        renderMenuBackground();
+    }
 
     SDL_Color titleShadow = {0, 0, 0, 80};
     SDL_Color titleColor = {255, 255, 255, 255};
@@ -1016,7 +1028,11 @@ void CGAME::renderSettings() {
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC TO RETURN", 635, 1, guideColor);
+    if (mSettingsPreviousState == GameState::PAUSED) {
+        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC BACK TO PAUSE", 635, 1, guideColor);
+    } else {
+        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC TO RETURN", 635, 1, guideColor);
+    }
 }
 
 void CGAME::renderPauseMenu() {
