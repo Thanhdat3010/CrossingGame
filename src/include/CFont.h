@@ -20,6 +20,7 @@ public:
     void free();
     void drawText(SDL_Renderer* renderer, const std::string& text, int x, int y, int scale, SDL_Color color);
     void drawTextCentered(SDL_Renderer* renderer, const std::string& text, int y, int scale, SDL_Color color);
+    void drawTextCenteredInBox(SDL_Renderer* renderer, const std::string& text, float boxX, float boxY, float boxW, float boxH, int scale, SDL_Color color);
 };
 
 #endif // CFONT_H

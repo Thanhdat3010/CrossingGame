@@ -227,3 +227,12 @@ void CFont::drawTextCentered(SDL_Renderer* renderer, const std::string& text, in
     int x = (1280 - totalWidth) / 2;
     drawText(renderer, text, x, y, scale, color);
 }
+
+void CFont::drawTextCenteredInBox(SDL_Renderer* renderer, const std::string& text, float boxX, float boxY, float boxW, float boxH, int scale, SDL_Color color) {
+    if (text.empty()) return;
+    int totalWidth = (int)text.length() * (mCharWidth + 1) * scale - scale;
+    int totalHeight = mCharHeight * scale;
+    int x = (int)(boxX + (boxW - (float)totalWidth) / 2.0f);
+    int y = (int)(boxY + (boxH - (float)totalHeight) / 2.0f);
+    drawText(renderer, text, x, y, scale, color);
+}

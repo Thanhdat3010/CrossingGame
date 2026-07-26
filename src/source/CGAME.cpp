@@ -245,7 +245,7 @@ void CGAME::handleInput() {
 
             if (!mPendingDeleteFileName.empty()) {
                 // Click YES [Y] button
-                if (mx >= 400.0f && mx <= 580.0f && my >= 415.0f && my <= 463.0f) {
+                if (mx >= 370.0f && mx <= 610.0f && my >= 400.0f && my <= 460.0f) {
                     std::filesystem::remove("saves/" + mPendingDeleteFileName);
                     mPendingDeleteFileName = "";
                     scanSaveFiles();
@@ -253,7 +253,7 @@ void CGAME::handleInput() {
                     if (mSelectedLoadIndex >= (int)mSaveFilesList.size()) mSelectedLoadIndex = std::max(0, (int)mSaveFilesList.size() - 1);
                 }
                 // Click CANCEL [N] button
-                else if (mx >= 700.0f && mx <= 880.0f && my >= 415.0f && my <= 463.0f) {
+                else if (mx >= 670.0f && mx <= 910.0f && my >= 400.0f && my <= 460.0f) {
                     mPendingDeleteFileName = "";
                 }
                 continue;
@@ -1281,7 +1281,7 @@ void CGAME::renderSaveDialog() {
         SDL_RenderRect(mRenderer, &delBtn);
 
         SDL_Color whiteCol = { 255, 255, 255, 255 };
-        mFont.drawText(mRenderer, "X", (int)btnX + 22, (int)btnY + 6, 2, whiteCol);
+        mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 60.0f, 40.0f, 2, whiteCol);
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
@@ -1356,7 +1356,7 @@ void CGAME::renderLoadDialog() {
             SDL_RenderRect(mRenderer, &delBtn);
 
             SDL_Color whiteCol = { 255, 255, 255, 255 };
-            mFont.drawText(mRenderer, "X", (int)btnX + 22, (int)btnY + 6, 2, whiteCol);
+            mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 60.0f, 40.0f, 2, whiteCol);
         }
     }
 
@@ -1370,7 +1370,7 @@ void CGAME::renderDeleteConfirmDialog() {
     SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
     SDL_RenderFillRect(mRenderer, &overlay);
 
-    float panelX = 340.0f, panelY = 220.0f;
+    float panelX = 340.0f, panelY = 210.0f;
     float panelW = 600.0f, panelH = 280.0f;
 
     SDL_SetRenderDrawColor(mRenderer, 255, 240, 240, 245);
@@ -1392,25 +1392,27 @@ void CGAME::renderDeleteConfirmDialog() {
     SDL_Color fileColor = { 20, 100, 150, 255 };
     SDL_Color warnColor = { 200, 30, 30, 255 };
 
-    mFont.drawTextCentered(mRenderer, "DELETE SAVE FILE", (int)panelY + 25, 3, titleColor);
-    mFont.drawTextCentered(mRenderer, "ARE YOU SURE YOU WANT TO DELETE:", (int)panelY + 75, 2, msgColor);
+    mFont.drawTextCenteredInBox(mRenderer, "DELETE SAVE FILE", panelX, panelY + 15, panelW, 30, 3, titleColor);
+    mFont.drawTextCenteredInBox(mRenderer, "ARE YOU SURE YOU WANT TO DELETE:", panelX, panelY + 65, panelW, 25, 2, msgColor);
     
     std::string fileStr = "[ " + mPendingDeleteFileName + " ]";
-    mFont.drawTextCentered(mRenderer, fileStr, (int)panelY + 115, 2, fileColor);
-    mFont.drawTextCentered(mRenderer, "THIS ACTION CANNOT BE UNDONE!", (int)panelY + 155, 1, warnColor);
+    mFont.drawTextCenteredInBox(mRenderer, fileStr, panelX, panelY + 105, panelW, 25, 2, fileColor);
+    mFont.drawTextCenteredInBox(mRenderer, "THIS ACTION CANNOT BE UNDONE!", panelX, panelY + 145, panelW, 20, 1, warnColor);
 
     // Nút YES [Y]
+    float btnYesX = 370.0f, btnY = panelY + 195.0f, btnW = 240.0f, btnH = 50.0f;
     SDL_SetRenderDrawColor(mRenderer, 200, 40, 40, 255);
-    SDL_FRect btnYes = { 400.0f, panelY + 195.0f, 180.0f, 48.0f };
+    SDL_FRect btnYes = { btnYesX, btnY, btnW, btnH };
     SDL_RenderFillRect(mRenderer, &btnYes);
     SDL_Color btnTextCol = { 255, 255, 255, 255 };
-    mFont.drawTextCentered(mRenderer, "[ Y ] YES", (int)panelY + 210, 2, btnTextCol);
+    mFont.drawTextCenteredInBox(mRenderer, "[ Y ] YES", btnYesX, btnY, btnW, btnH, 2, btnTextCol);
 
     // Nút CANCEL [N]
+    float btnNoX = 670.0f;
     SDL_SetRenderDrawColor(mRenderer, 80, 100, 90, 255);
-    SDL_FRect btnNo = { 700.0f, panelY + 195.0f, 180.0f, 48.0f };
+    SDL_FRect btnNo = { btnNoX, btnY, btnW, btnH };
     SDL_RenderFillRect(mRenderer, &btnNo);
-    mFont.drawTextCentered(mRenderer, "[ N ] CANCEL", (int)panelY + 210, 2, btnTextCol);
+    mFont.drawTextCenteredInBox(mRenderer, "[ N ] CANCEL", btnNoX, btnY, btnW, btnH, 2, btnTextCol);
 }
 
 std::vector<std::string> CGAME::scanSaveFiles() {
