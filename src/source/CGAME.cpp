@@ -90,6 +90,7 @@ CGAME::CGAME()
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
       mSettingsPreviousState(GameState::MENU),
+      mLoadPreviousState(GameState::MENU),
       mInputSaveName("save1"), mIsTypingNewSaveName(false),
       mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
       mScore(0), mMaxReachedY(0),
@@ -335,6 +336,7 @@ void CGAME::handleInput() {
                     } else if (mSelectedMenuOption == 1) {
                         scanSaveFiles();
                         mSelectedLoadIndex = 0;
+                        mLoadPreviousState = GameState::MENU;
                         mState = GameState::LOAD_DIALOG;
                     } else if (mSelectedMenuOption == 2) {
                         mSettingsPreviousState = GameState::MENU;
@@ -413,6 +415,7 @@ void CGAME::handleInput() {
                     } else if (mSelectedPauseOption == 2) {
                         scanSaveFiles();
                         mSelectedLoadIndex = 0;
+                        mLoadPreviousState = GameState::PAUSED;
                         mState = GameState::LOAD_DIALOG;
                     } else if (mSelectedPauseOption == 3) {
                         mSettingsPreviousState = GameState::PAUSED;
@@ -488,7 +491,7 @@ void CGAME::handleInput() {
                     }
                 }
                 if (key == SDLK_ESCAPE) {
-                    mState = GameState::MENU;
+                    mState = mLoadPreviousState;
                 }
             }
             else if (mState == GameState::PLAYING) {
@@ -507,6 +510,7 @@ void CGAME::handleInput() {
                     else if (key == SDLK_T) {
                         scanSaveFiles();
                         mSelectedLoadIndex = 0;
+                        mLoadPreviousState = GameState::PAUSED;
                         mState = GameState::LOAD_DIALOG;
                     }
                     else if (key == SDLK_ESCAPE) {
@@ -678,7 +682,11 @@ void CGAME::render() {
         renderSaveDialog();
     }
     else if (mState == GameState::LOAD_DIALOG) {
-        renderMenuBackground();
+        if (mLoadPreviousState == GameState::PAUSED) {
+            renderPlaying();
+        } else {
+            renderMenuBackground();
+        }
         renderLoadDialog();
     }
 
@@ -1361,7 +1369,11 @@ void CGAME::renderLoadDialog() {
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "UP/DOWN TO SELECT  -  ENTER TO LOAD  -  DEL / [X] TO DELETE", 655, 1, guideColor);
+    if (mLoadPreviousState == GameState::PAUSED) {
+        mFont.drawTextCentered(mRenderer, "UP/DOWN TO SELECT  -  ENTER TO LOAD  -  DEL / [X] TO DELETE  -  ESC BACK TO PAUSE", 655, 1, guideColor);
+    } else {
+        mFont.drawTextCentered(mRenderer, "UP/DOWN TO SELECT  -  ENTER TO LOAD  -  DEL / [X] TO DELETE  -  ESC TO BACK", 655, 1, guideColor);
+    }
 }
 
 void CGAME::renderDeleteConfirmDialog() {

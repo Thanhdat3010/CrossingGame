@@ -98,6 +98,7 @@ private:
     int mSelectedLoadIndex;
 
     GameState mSettingsPreviousState;
+    GameState mLoadPreviousState;
 
     std::vector<std::string> mSaveFilesList;
     std::string mInputSaveName;
