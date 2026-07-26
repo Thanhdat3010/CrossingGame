@@ -12,10 +12,6 @@ CICEDRAGON::~CICEDRAGON() {}
 void CICEDRAGON::Move(int limitX1, int limitX2) {
     mX += mDirection * mSpeed;
 
-    Uint64 ticks = SDL_GetTicks();
-    mWingPulse = sinf((float)ticks / 200.0f);
-    mY += (int)(mWingPulse * 1.5f);
-
     if (mDirection == 1 && mX > limitX2) {
         mX = limitX1 - mWidth;
     }
@@ -25,7 +21,8 @@ void CICEDRAGON::Move(int limitX1, int limitX2) {
 }
 
 void CICEDRAGON::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
-    float baseY = (float)mY - cameraY;
+    float hoverY = sinf((float)SDL_GetTicks() / 200.0f) * 3.0f;
+    float baseY = (float)mY - cameraY + hoverY;
     if (mTexture1) {
         int frameIndex = (std::abs(mX) / 140) % 2;
         SDL_Texture* activeTex = (frameIndex == 0) ? mTexture1 : mTexture2;
