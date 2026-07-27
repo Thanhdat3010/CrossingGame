@@ -1572,11 +1572,11 @@ void CGAME::renderDeleteConfirmDialog() {
     SDL_Color fileColor = { 20, 100, 150, 255 };
     SDL_Color warnColor = { 200, 30, 30, 255 };
 
-    mFont.drawTextCenteredInBox(mRenderer, "DELETE SAVE FILE", panelX, panelY + 15, panelW, 30, 3, titleColor);
-    mFont.drawTextCenteredInBox(mRenderer, "ARE YOU SURE YOU WANT TO DELETE:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+    mFont.drawTextCenteredInBox(mRenderer, "DELETE SAVE FILE", panelX, panelY + 15, panelW, 30, 2, titleColor);
+    mFont.drawTextCenteredInBox(mRenderer, "ARE YOU SURE YOU WANT TO DELETE:", panelX, panelY + 55, panelW, 25, 2, msgColor);
     
     std::string fileStr = "[ " + mPendingDeleteFileName + " ]";
-    mFont.drawTextCenteredInBox(mRenderer, fileStr, panelX, panelY + 105, panelW, 25, 2, fileColor);
+    mFont.drawTextCenteredInBox(mRenderer, fileStr, panelX, panelY + 95, panelW, 25, 2, fileColor);
     mFont.drawTextCenteredInBox(mRenderer, "THIS ACTION CANNOT BE UNDONE!", panelX, panelY + 145, panelW, 20, 1, warnColor);
 
     // Nút YES [Y]
@@ -1625,18 +1625,18 @@ void CGAME::renderSaveConfirmDialog() {
     SDL_Color slotColor = { 20, 100, 150, 255 };
     SDL_Color warnColor = { 200, 50, 50, 255 };
 
-    mFont.drawTextCenteredInBox(mRenderer, "SAVE GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 3, titleColor);
+    mFont.drawTextCenteredInBox(mRenderer, "SAVE GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 2, titleColor);
     
     std::string slotStr = "SLOT " + std::to_string(mPendingSaveSlotIndex + 1);
     if (mSaveSlots[mPendingSaveSlotIndex].exists) {
-        mFont.drawTextCenteredInBox(mRenderer, "OVERWRITE GAME DATA IN:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+        mFont.drawTextCenteredInBox(mRenderer, "OVERWRITE GAME DATA IN:", panelX, panelY + 55, panelW, 25, 2, msgColor);
         std::string infoStr = "[ " + slotStr + " : " + mSaveSlots[mPendingSaveSlotIndex].timestamp + " ]";
-        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 95, panelW, 25, 2, slotColor);
         mFont.drawTextCenteredInBox(mRenderer, "PREVIOUS DATA IN THIS SLOT WILL BE REPLACED!", panelX, panelY + 145, panelW, 20, 1, warnColor);
     } else {
-        mFont.drawTextCenteredInBox(mRenderer, "SAVE CURRENT PROGRESS TO:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+        mFont.drawTextCenteredInBox(mRenderer, "SAVE CURRENT PROGRESS TO:", panelX, panelY + 55, panelW, 25, 2, msgColor);
         std::string infoStr = "[ " + slotStr + " : NEW SAVE ]";
-        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 95, panelW, 25, 2, slotColor);
         mFont.drawTextCenteredInBox(mRenderer, "GAME STATE WILL BE SAVED TO THIS SLOT", panelX, panelY + 145, panelW, 20, 1, titleColor);
     }
 
@@ -1686,12 +1686,12 @@ void CGAME::renderLoadConfirmDialog() {
     SDL_Color slotColor = { 10, 110, 80, 255 };
     SDL_Color warnColor = { 200, 50, 50, 255 };
 
-    mFont.drawTextCenteredInBox(mRenderer, "LOAD GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 3, titleColor);
-    mFont.drawTextCenteredInBox(mRenderer, "LOAD SAVED PROGRESS FROM:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+    mFont.drawTextCenteredInBox(mRenderer, "LOAD GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 2, titleColor);
+    mFont.drawTextCenteredInBox(mRenderer, "LOAD SAVED PROGRESS FROM:", panelX, panelY + 55, panelW, 25, 2, msgColor);
     
     std::string slotStr = "SLOT " + std::to_string(mPendingLoadSlotIndex + 1);
-    std::string infoStr = "[ " + slotStr + " : " + mSaveSlots[mPendingLoadSlotIndex].timestamp + " | SCORE:" + std::to_string(mSaveSlots[mPendingLoadSlotIndex].score) + " ]";
-    mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+    std::string infoStr = "[ " + slotStr + " : " + mSaveSlots[mPendingLoadSlotIndex].timestamp + " ]";
+    mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 95, panelW, 25, 2, slotColor);
     mFont.drawTextCenteredInBox(mRenderer, "UNSAVED CURRENT PROGRESS WILL BE LOST!", panelX, panelY + 145, panelW, 20, 1, warnColor);
 
     // Nút YES [Y]
