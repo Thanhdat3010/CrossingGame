@@ -1267,7 +1267,7 @@ void CGAME::renderPauseMenu() {
 
     std::string options[5] = {
         "1. RESUME GAME",
-        mIsInfinityMode ? "2. SAVE GAME  (L)" : "2. SAVE GAME  (DISABLED IN TUTORIAL)",
+        "2. SAVE GAME  (L)",
         "3. LOAD GAME  (T)",
         "4. SETTINGS",
         "5. MAIN MENU"
