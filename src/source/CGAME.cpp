@@ -1411,12 +1411,6 @@ void CGAME::renderSaveDialog() {
     int startY = 245;
     for (int i = 0; i < 5; ++i) {
         int yPos = startY + i * 65;
-        std::string slotLabel;
-        if (mSaveSlots[i].exists) {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + " | SCORE: " + std::to_string(mSaveSlots[i].score);
-        } else {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
-        }
 
         if (mSelectedSaveIndex == i) {
             SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
@@ -1429,10 +1423,27 @@ void CGAME::renderSaveDialog() {
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
             mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 2, selectColor);
-            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, selectColor);
+
+            if (mSaveSlots[i].exists) {
+                std::string leftLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp;
+                std::string scoreLabel = "SCORE: " + std::to_string(mSaveSlots[i].score);
+                mFont.drawText(mRenderer, leftLabel, (int)(panelX + 70), yPos, 2, selectColor);
+                mFont.drawText(mRenderer, scoreLabel, (int)(panelX + 500), yPos, 2, selectColor);
+            } else {
+                std::string emptyLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+                mFont.drawText(mRenderer, emptyLabel, (int)(panelX + 70), yPos, 2, selectColor);
+            }
         } else {
             SDL_Color col = mSaveSlots[i].exists ? normalColor : emptyColor;
-            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, col);
+            if (mSaveSlots[i].exists) {
+                std::string leftLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp;
+                std::string scoreLabel = "SCORE: " + std::to_string(mSaveSlots[i].score);
+                mFont.drawText(mRenderer, leftLabel, (int)(panelX + 70), yPos, 2, col);
+                mFont.drawText(mRenderer, scoreLabel, (int)(panelX + 500), yPos, 2, col);
+            } else {
+                std::string emptyLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+                mFont.drawText(mRenderer, emptyLabel, (int)(panelX + 70), yPos, 2, col);
+            }
         }
 
         // Delete button [X] for existing saves
@@ -1496,12 +1507,6 @@ void CGAME::renderLoadDialog() {
     int startY = 245;
     for (int i = 0; i < 5; ++i) {
         int yPos = startY + i * 65;
-        std::string slotLabel;
-        if (mSaveSlots[i].exists) {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + " | SCORE: " + std::to_string(mSaveSlots[i].score);
-        } else {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
-        }
 
         if (mSelectedLoadIndex == i) {
             SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
@@ -1514,10 +1519,27 @@ void CGAME::renderLoadDialog() {
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
             mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 2, selectColor);
-            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, selectColor);
+
+            if (mSaveSlots[i].exists) {
+                std::string leftLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp;
+                std::string scoreLabel = "SCORE: " + std::to_string(mSaveSlots[i].score);
+                mFont.drawText(mRenderer, leftLabel, (int)(panelX + 70), yPos, 2, selectColor);
+                mFont.drawText(mRenderer, scoreLabel, (int)(panelX + 500), yPos, 2, selectColor);
+            } else {
+                std::string emptyLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+                mFont.drawText(mRenderer, emptyLabel, (int)(panelX + 70), yPos, 2, selectColor);
+            }
         } else {
             SDL_Color col = mSaveSlots[i].exists ? normalColor : emptyColor;
-            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, col);
+            if (mSaveSlots[i].exists) {
+                std::string leftLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp;
+                std::string scoreLabel = "SCORE: " + std::to_string(mSaveSlots[i].score);
+                mFont.drawText(mRenderer, leftLabel, (int)(panelX + 70), yPos, 2, col);
+                mFont.drawText(mRenderer, scoreLabel, (int)(panelX + 500), yPos, 2, col);
+            } else {
+                std::string emptyLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+                mFont.drawText(mRenderer, emptyLabel, (int)(panelX + 70), yPos, 2, col);
+            }
         }
 
         // Delete button [X] for existing saves
