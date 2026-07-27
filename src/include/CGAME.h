@@ -37,6 +37,15 @@ enum class LaneType {
     REST
 };
 
+struct SaveSlotInfo {
+    bool exists = false;
+    std::string filename;
+    std::string timestamp;
+    int score = 0;
+    std::string mode;
+    int stage = 1;
+};
+
 struct Lane {
     LaneType type;
     int worldY;
@@ -100,9 +109,7 @@ private:
     GameState mSettingsPreviousState;
     GameState mLoadPreviousState;
 
-    std::vector<std::string> mSaveFilesList;
-    std::string mInputSaveName;
-    bool mIsTypingNewSaveName;
+    SaveSlotInfo mSaveSlots[5];
     std::string mPendingDeleteFileName;
     GameState mDeleteReturnState;
 
@@ -139,6 +146,7 @@ private:
     void render();
 
     void renderMenuBackground();
+    void loadObstacleTextures();
     void renderMenu();
     void renderCharSelect();
     void renderStageSelect();
@@ -151,9 +159,9 @@ private:
     void toggleMusic();
     void toggleSfx();
 
-    bool saveGame(const std::string& filename);
-    bool loadGame(const std::string& filename);
-    std::vector<std::string> scanSaveFiles();
+    bool saveGame(int slotIndex);
+    bool loadGame(int slotIndex);
+    void scanSaveSlots();
 
     void clearObstacles();
 

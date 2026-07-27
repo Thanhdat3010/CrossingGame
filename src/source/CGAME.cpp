@@ -91,7 +91,6 @@ CGAME::CGAME()
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
       mSettingsPreviousState(GameState::MENU),
       mLoadPreviousState(GameState::MENU),
-      mInputSaveName("save1"), mIsTypingNewSaveName(false),
       mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
@@ -254,9 +253,7 @@ void CGAME::handleInput() {
                 if (mx >= 370.0f && mx <= 610.0f && my >= 400.0f && my <= 460.0f) {
                     std::filesystem::remove("saves/" + mPendingDeleteFileName);
                     mPendingDeleteFileName = "";
-                    scanSaveFiles();
-                    if (mSelectedSaveIndex >= (int)mSaveFilesList.size() + 1) mSelectedSaveIndex = (int)mSaveFilesList.size();
-                    if (mSelectedLoadIndex >= (int)mSaveFilesList.size()) mSelectedLoadIndex = std::max(0, (int)mSaveFilesList.size() - 1);
+                    scanSaveSlots();
                 }
                 // Click CANCEL [N] button
                 else if (mx >= 670.0f && mx <= 910.0f && my >= 400.0f && my <= 460.0f) {
@@ -267,44 +264,39 @@ void CGAME::handleInput() {
 
             float panelX = 240.0f, panelW = 800.0f;
             if (mState == GameState::SAVE_DIALOG) {
-                // Row 0: NEW SAVE
-                if (mx >= panelX + 20 && mx <= panelX + panelW - 40 && my >= 240.0f && my <= 288.0f) {
-                    mSelectedSaveIndex = 0;
-                }
-                // Existing files
-                for (size_t i = 0; i < mSaveFilesList.size() && i < 4; ++i) {
-                    float yPos = 250.0f + (float)(i + 1) * 55.0f;
-                    float btnX = panelX + panelW - 90.0f;
-                    float btnY = yPos - 8.0f;
+                for (int i = 0; i < 5; ++i) {
+                    float yPos = 245.0f + (float)i * 65.0f;
+                    float btnX = panelX + panelW - 75.0f;
+                    float btnY = yPos - 6.0f;
 
                     // Click Red [X] Delete Button
-                    if (mx >= btnX && mx <= btnX + 60.0f && my >= btnY && my <= btnY + 40.0f) {
-                        mPendingDeleteFileName = mSaveFilesList[i];
+                    if (mSaveSlots[i].exists && mx >= btnX && mx <= btnX + 45.0f && my >= btnY && my <= btnY + 35.0f) {
+                        mPendingDeleteFileName = mSaveSlots[i].filename;
                         mDeleteReturnState = GameState::SAVE_DIALOG;
                         break;
                     }
                     // Click Row to Select
-                    else if (mx >= panelX + 20 && mx <= btnX - 10.0f && my >= yPos - 10.0f && my <= yPos + 38.0f) {
-                        mSelectedSaveIndex = (int)(i + 1);
+                    else if (mx >= panelX + 20 && mx <= panelX + panelW - 20 && my >= yPos - 10.0f && my <= yPos + 45.0f) {
+                        mSelectedSaveIndex = i;
                         break;
                     }
                 }
             }
             else if (mState == GameState::LOAD_DIALOG) {
-                for (size_t i = 0; i < mSaveFilesList.size() && i < 5; ++i) {
-                    float yPos = 250.0f + (float)i * 60.0f;
-                    float btnX = panelX + panelW - 90.0f;
-                    float btnY = yPos - 8.0f;
+                for (int i = 0; i < 5; ++i) {
+                    float yPos = 245.0f + (float)i * 65.0f;
+                    float btnX = panelX + panelW - 75.0f;
+                    float btnY = yPos - 6.0f;
 
                     // Click Red [X] Delete Button
-                    if (mx >= btnX && mx <= btnX + 60.0f && my >= btnY && my <= btnY + 40.0f) {
-                        mPendingDeleteFileName = mSaveFilesList[i];
+                    if (mSaveSlots[i].exists && mx >= btnX && mx <= btnX + 45.0f && my >= btnY && my <= btnY + 35.0f) {
+                        mPendingDeleteFileName = mSaveSlots[i].filename;
                         mDeleteReturnState = GameState::LOAD_DIALOG;
                         break;
                     }
                     // Click Row to Select
-                    else if (mx >= panelX + 20 && mx <= btnX - 10.0f && my >= yPos - 10.0f && my <= yPos + 40.0f) {
-                        mSelectedLoadIndex = (int)i;
+                    else if (mx >= panelX + 20 && mx <= panelX + panelW - 20 && my >= yPos - 10.0f && my <= yPos + 45.0f) {
+                        mSelectedLoadIndex = i;
                         break;
                     }
                 }
@@ -318,7 +310,7 @@ void CGAME::handleInput() {
                         if (i == 0) {
                             startGame();
                         } else if (i == 1) {
-                            scanSaveFiles();
+                            scanSaveSlots();
                             mSelectedLoadIndex = 0;
                             mLoadPreviousState = GameState::MENU;
                             mState = GameState::LOAD_DIALOG;
@@ -341,9 +333,7 @@ void CGAME::handleInput() {
                 if (key == SDLK_Y) {
                     std::filesystem::remove("saves/" + mPendingDeleteFileName);
                     mPendingDeleteFileName = "";
-                    scanSaveFiles();
-                    if (mSelectedSaveIndex >= (int)mSaveFilesList.size() + 1) mSelectedSaveIndex = (int)mSaveFilesList.size();
-                    if (mSelectedLoadIndex >= (int)mSaveFilesList.size()) mSelectedLoadIndex = std::max(0, (int)mSaveFilesList.size() - 1);
+                    scanSaveSlots();
                 }
                 else if (key == SDLK_N || key == SDLK_ESCAPE) {
                     mPendingDeleteFileName = "";
@@ -363,7 +353,7 @@ void CGAME::handleInput() {
                     if (mSelectedMenuOption == 0) {
                         startGame();
                     } else if (mSelectedMenuOption == 1) {
-                        scanSaveFiles();
+                        scanSaveSlots();
                         mSelectedLoadIndex = 0;
                         mLoadPreviousState = GameState::MENU;
                         mState = GameState::LOAD_DIALOG;
@@ -457,11 +447,11 @@ void CGAME::handleInput() {
                     if (mSelectedPauseOption == 0) {
                         mState = GameState::PLAYING;
                     } else if (mSelectedPauseOption == 1) {
-                        scanSaveFiles();
+                        scanSaveSlots();
                         mSelectedSaveIndex = 0;
                         mState = GameState::SAVE_DIALOG;
                     } else if (mSelectedPauseOption == 2) {
-                        scanSaveFiles();
+                        scanSaveSlots();
                         mSelectedLoadIndex = 0;
                         mLoadPreviousState = GameState::PAUSED;
                         mState = GameState::LOAD_DIALOG;
@@ -478,42 +468,20 @@ void CGAME::handleInput() {
                 }
             }
             else if (mState == GameState::SAVE_DIALOG) {
-                int totalItems = (int)mSaveFilesList.size() + 1;
-                
-                if (key == SDLK_UP) {
-                    mSelectedSaveIndex = (mSelectedSaveIndex - 1 + totalItems) % totalItems;
+                if (key == SDLK_W || key == SDLK_UP) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex - 1 + 5) % 5;
                 }
-                else if (key == SDLK_DOWN) {
-                    mSelectedSaveIndex = (mSelectedSaveIndex + 1) % totalItems;
+                else if (key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedSaveIndex = (mSelectedSaveIndex + 1) % 5;
                 }
-                else if (mSelectedSaveIndex != 0 && key == SDLK_W) {
-                    mSelectedSaveIndex = (mSelectedSaveIndex - 1 + totalItems) % totalItems;
-                }
-                else if (mSelectedSaveIndex != 0 && key == SDLK_S) {
-                    mSelectedSaveIndex = (mSelectedSaveIndex + 1) % totalItems;
-                }
-                else if (key == SDLK_DELETE && mSelectedSaveIndex > 0 && mSelectedSaveIndex - 1 < (int)mSaveFilesList.size()) {
-                    mPendingDeleteFileName = mSaveFilesList[mSelectedSaveIndex - 1];
-                    mDeleteReturnState = GameState::SAVE_DIALOG;
-                }
-                else if (key == SDLK_BACKSPACE && mSelectedSaveIndex == 0) {
-                    if (!mInputSaveName.empty()) mInputSaveName.pop_back();
-                }
-                else if (key >= SDLK_A && key <= SDLK_Z && mSelectedSaveIndex == 0) {
-                    if (mInputSaveName.length() < 16) {
-                        char c = (char)('a' + (key - SDLK_A));
-                        mInputSaveName += c;
-                    }
-                }
-                else if (key >= SDLK_0 && key <= SDLK_9 && mSelectedSaveIndex == 0) {
-                    if (mInputSaveName.length() < 16) {
-                        char c = (char)('0' + (key - SDLK_0));
-                        mInputSaveName += c;
+                else if (key == SDLK_DELETE) {
+                    if (mSaveSlots[mSelectedSaveIndex].exists) {
+                        mPendingDeleteFileName = mSaveSlots[mSelectedSaveIndex].filename;
+                        mDeleteReturnState = GameState::SAVE_DIALOG;
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                    std::string saveName = (mSelectedSaveIndex == 0) ? mInputSaveName : mSaveFilesList[mSelectedSaveIndex - 1];
-                    if (saveGame(saveName)) {
+                    if (saveGame(mSelectedSaveIndex)) {
                         mState = GameState::PLAYING;
                     }
                 }
@@ -522,23 +490,24 @@ void CGAME::handleInput() {
                 }
             }
             else if (mState == GameState::LOAD_DIALOG) {
-                int totalItems = (int)mSaveFilesList.size();
-                if (totalItems > 0) {
-                    if (key == SDLK_W || key == SDLK_UP) {
-                        mSelectedLoadIndex = (mSelectedLoadIndex - 1 + totalItems) % totalItems;
-                    }
-                    else if (key == SDLK_S || key == SDLK_DOWN) {
-                        mSelectedLoadIndex = (mSelectedLoadIndex + 1) % totalItems;
-                    }
-                    else if (key == SDLK_DELETE && mSelectedLoadIndex < (int)mSaveFilesList.size()) {
-                        mPendingDeleteFileName = mSaveFilesList[mSelectedLoadIndex];
+                if (key == SDLK_W || key == SDLK_UP) {
+                    mSelectedLoadIndex = (mSelectedLoadIndex - 1 + 5) % 5;
+                }
+                else if (key == SDLK_S || key == SDLK_DOWN) {
+                    mSelectedLoadIndex = (mSelectedLoadIndex + 1) % 5;
+                }
+                else if (key == SDLK_DELETE) {
+                    if (mSaveSlots[mSelectedLoadIndex].exists) {
+                        mPendingDeleteFileName = mSaveSlots[mSelectedLoadIndex].filename;
                         mDeleteReturnState = GameState::LOAD_DIALOG;
                     }
-                    else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                        loadGame(mSaveFilesList[mSelectedLoadIndex]);
+                }
+                else if (key == SDLK_RETURN || key == SDLK_SPACE) {
+                    if (mSaveSlots[mSelectedLoadIndex].exists && loadGame(mSelectedLoadIndex)) {
+                        mState = GameState::PLAYING;
                     }
                 }
-                if (key == SDLK_ESCAPE) {
+                else if (key == SDLK_ESCAPE) {
                     mState = mLoadPreviousState;
                 }
             }
@@ -551,12 +520,12 @@ void CGAME::handleInput() {
                         mState = GameState::PAUSED;
                     }
                     else if (key == SDLK_L) {
-                        scanSaveFiles();
+                        scanSaveSlots();
                         mSelectedSaveIndex = 0;
                         mState = GameState::SAVE_DIALOG;
                     }
                     else if (key == SDLK_T) {
-                        scanSaveFiles();
+                        scanSaveSlots();
                         mSelectedLoadIndex = 0;
                         mLoadPreviousState = GameState::PAUSED;
                         mState = GameState::LOAD_DIALOG;
@@ -1236,7 +1205,7 @@ void CGAME::renderSettings() {
             // 1. Progress Bar (X = panelX + 380)
             float barX = panelX + 380.0f;
             float barY = (float)yPos + 4.0f;
-            float barW = 200.0f;
+            float barW = 160.0f;
             float barH = 22.0f;
 
             SDL_SetRenderDrawColor(mRenderer, 50, 70, 65, 200);
@@ -1253,10 +1222,10 @@ void CGAME::renderSettings() {
             SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
             SDL_RenderRect(mRenderer, &barBg);
 
-            // 2. Percentage text (X = panelX + 600)
+            // 2. Percentage text (X = panelX + 560 -> fits nicely inside panel boundary)
             std::string pctText = "< " + (vol == 0 ? "OFF" : std::to_string(vol) + "%") + " >";
             SDL_Color textCol = (mSelectedSettingsOption == i) ? selectColor : normalColor;
-            mFont.drawText(mRenderer, pctText, (int)(panelX + 600), yPos, 3, textCol);
+            mFont.drawText(mRenderer, pctText, (int)(panelX + 560), yPos, 3, textCol);
         }
     }
 
@@ -1340,7 +1309,7 @@ void CGAME::renderSaveDialog() {
     SDL_Color subtitleColor = {220, 245, 255, 255};
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 98, 4, titleShadow);
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 96, 4, titleColor);
-    mFont.drawTextCentered(mRenderer, "SELECT OR ENTER SAVE FILE NAME", 146, 2, subtitleColor);
+    mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
 
     float panelX = 240.0f, panelY = 210.0f;
     float panelW = 800.0f, panelH = 430.0f;
@@ -1361,61 +1330,53 @@ void CGAME::renderSaveDialog() {
 
     SDL_Color normalColor = {30, 60, 50, 255};
     SDL_Color selectColor = {10, 95, 75, 255};
+    SDL_Color emptyColor  = {120, 140, 135, 255};
 
-    int startY = 250;
-    std::string newFileLabel = "NEW SAVE : [ " + mInputSaveName + " ]";
-    if (mSelectedSaveIndex == 0) {
-        SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
-        SDL_FRect highlight = { panelX + 20, (float)startY - 10, panelW - 40, 48.0f };
-        SDL_RenderFillRect(mRenderer, &highlight);
+    int startY = 245;
+    for (int i = 0; i < 5; ++i) {
+        int yPos = startY + i * 65;
+        std::string slotLabel;
+        if (mSaveSlots[i].exists) {
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + "  " + mSaveSlots[i].mode + "  SCORE:" + std::to_string(mSaveSlots[i].score);
+        } else {
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+        }
 
-        SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
-        SDL_FRect hlBorder = { panelX + 20, (float)startY - 10, 4.0f, 48.0f };
-        SDL_RenderFillRect(mRenderer, &hlBorder);
-
-        float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
-        mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), startY, 3, selectColor);
-        mFont.drawText(mRenderer, newFileLabel, (int)(panelX + 80), startY, 3, selectColor);
-    } else {
-        mFont.drawText(mRenderer, newFileLabel, (int)(panelX + 80), startY, 3, normalColor);
-    }
-
-    for (size_t i = 0; i < mSaveFilesList.size() && i < 4; ++i) {
-        int yPos = startY + (int)(i + 1) * 55;
-        std::string fileLabel = "OVERWRITE : " + mSaveFilesList[i];
-
-        if (mSelectedSaveIndex == (int)(i + 1)) {
+        if (mSelectedSaveIndex == i) {
             SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
-            SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 48.0f };
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 52.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
             SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
-            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 48.0f };
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 52.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
-            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
-            mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 2, selectColor);
+            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, selectColor);
         } else {
-            mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
+            SDL_Color col = mSaveSlots[i].exists ? normalColor : emptyColor;
+            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, col);
         }
 
-        // Red [X] Delete Button
-        float btnX = panelX + panelW - 90.0f;
-        float btnY = (float)yPos - 8.0f;
-        SDL_SetRenderDrawColor(mRenderer, 220, 40, 40, 220);
-        SDL_FRect delBtn = { btnX, btnY, 60.0f, 40.0f };
-        SDL_RenderFillRect(mRenderer, &delBtn);
+        // Delete button [X] for existing saves
+        if (mSaveSlots[i].exists) {
+            float btnX = panelX + panelW - 75.0f;
+            float btnY = (float)yPos - 6.0f;
+            SDL_SetRenderDrawColor(mRenderer, 220, 40, 40, 220);
+            SDL_FRect delBtn = { btnX, btnY, 45.0f, 35.0f };
+            SDL_RenderFillRect(mRenderer, &delBtn);
 
-        SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
-        SDL_RenderRect(mRenderer, &delBtn);
+            SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
+            SDL_RenderRect(mRenderer, &delBtn);
 
-        SDL_Color whiteCol = { 255, 255, 255, 255 };
-        mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 60.0f, 40.0f, 2, whiteCol);
+            SDL_Color whiteCol = { 255, 255, 255, 255 };
+            mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 45.0f, 35.0f, 2, whiteCol);
+        }
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "TYPE NAME / ARROWS TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE", 655, 1, guideColor);
+    mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
 }
 
 void CGAME::renderLoadDialog() {
@@ -1429,7 +1390,7 @@ void CGAME::renderLoadDialog() {
     SDL_Color subtitleColor = {220, 245, 255, 255};
     mFont.drawTextCentered(mRenderer, "LOAD GAME", 98, 4, titleShadow);
     mFont.drawTextCentered(mRenderer, "LOAD GAME", 96, 4, titleColor);
-    mFont.drawTextCentered(mRenderer, "SELECT A SAVED GAME FILE TO RESUME", 146, 2, subtitleColor);
+    mFont.drawTextCentered(mRenderer, "SELECT A SAVED GAME SLOT TO RESUME", 146, 2, subtitleColor);
 
     float panelX = 240.0f, panelY = 210.0f;
     float panelW = 800.0f, panelH = 430.0f;
@@ -1450,43 +1411,48 @@ void CGAME::renderLoadDialog() {
 
     SDL_Color normalColor = {30, 60, 50, 255};
     SDL_Color selectColor = {10, 95, 75, 255};
+    SDL_Color emptyColor  = {120, 140, 135, 255};
 
-    if (mSaveFilesList.empty()) {
-        mFont.drawTextCentered(mRenderer, "NO SAVE FILES FOUND IN saves/ FOLDER!", 380, 2, selectColor);
-    } else {
-        int startY = 250;
-        for (size_t i = 0; i < mSaveFilesList.size() && i < 5; ++i) {
-            int yPos = startY + (int)i * 60;
-            std::string fileLabel = "LOAD FILE : " + mSaveFilesList[i];
+    int startY = 245;
+    for (int i = 0; i < 5; ++i) {
+        int yPos = startY + i * 65;
+        std::string slotLabel;
+        if (mSaveSlots[i].exists) {
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + "  " + mSaveSlots[i].mode + "  SCORE:" + std::to_string(mSaveSlots[i].score);
+        } else {
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
+        }
 
-            if (mSelectedLoadIndex == (int)i) {
-                SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
-                SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 50.0f };
-                SDL_RenderFillRect(mRenderer, &highlight);
+        if (mSelectedLoadIndex == i) {
+            SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 10, panelW - 40, 52.0f };
+            SDL_RenderFillRect(mRenderer, &highlight);
 
-                SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
-                SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 50.0f };
-                SDL_RenderFillRect(mRenderer, &hlBorder);
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 10, 4.0f, 52.0f };
+            SDL_RenderFillRect(mRenderer, &hlBorder);
 
-                float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
-                mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
-                mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, selectColor);
-            } else {
-                mFont.drawText(mRenderer, fileLabel, (int)(panelX + 80), yPos, 3, normalColor);
-            }
+            float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
+            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 2, selectColor);
+            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, selectColor);
+        } else {
+            SDL_Color col = mSaveSlots[i].exists ? normalColor : emptyColor;
+            mFont.drawText(mRenderer, slotLabel, (int)(panelX + 70), yPos, 2, col);
+        }
 
-            // Red [X] Delete Button
-            float btnX = panelX + panelW - 90.0f;
-            float btnY = (float)yPos - 8.0f;
+        // Delete button [X] for existing saves
+        if (mSaveSlots[i].exists) {
+            float btnX = panelX + panelW - 75.0f;
+            float btnY = (float)yPos - 6.0f;
             SDL_SetRenderDrawColor(mRenderer, 220, 40, 40, 220);
-            SDL_FRect delBtn = { btnX, btnY, 60.0f, 40.0f };
+            SDL_FRect delBtn = { btnX, btnY, 45.0f, 35.0f };
             SDL_RenderFillRect(mRenderer, &delBtn);
 
             SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
             SDL_RenderRect(mRenderer, &delBtn);
 
             SDL_Color whiteCol = { 255, 255, 255, 255 };
-            mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 60.0f, 40.0f, 2, whiteCol);
+            mFont.drawTextCenteredInBox(mRenderer, "X", btnX, btnY, 45.0f, 35.0f, 2, whiteCol);
         }
     }
 
@@ -1549,27 +1515,80 @@ void CGAME::renderDeleteConfirmDialog() {
     mFont.drawTextCenteredInBox(mRenderer, "[ N ] CANCEL", btnNoX, btnY, btnW, btnH, 2, btnTextCol);
 }
 
-std::vector<std::string> CGAME::scanSaveFiles() {
-    std::vector<std::string> files;
+void CGAME::scanSaveSlots() {
     try {
         std::filesystem::create_directories("saves");
-        for (const auto& entry : std::filesystem::directory_iterator("saves")) {
-            if (entry.is_regular_file() && entry.path().extension() == ".txt") {
-                files.push_back(entry.path().filename().string());
+    } catch (...) {}
+
+    for (int i = 0; i < 5; ++i) {
+        std::string fname = "slot" + std::to_string(i + 1) + ".txt";
+        std::string fullPath = "saves/" + fname;
+
+        mSaveSlots[i].filename = fname;
+        if (!std::filesystem::exists(fullPath)) {
+            mSaveSlots[i].exists = false;
+            mSaveSlots[i].timestamp = "";
+            mSaveSlots[i].score = 0;
+            mSaveSlots[i].mode = "";
+            mSaveSlots[i].stage = 1;
+            continue;
+        }
+
+        mSaveSlots[i].exists = true;
+        mSaveSlots[i].score = 0;
+        mSaveSlots[i].mode = "STAGE";
+        mSaveSlots[i].stage = 1;
+        mSaveSlots[i].timestamp = "---";
+
+        std::ifstream inFile(fullPath);
+        if (inFile.is_open()) {
+            std::string line;
+            std::string currentSection = "";
+            while (std::getline(inFile, line)) {
+                if (line.empty() || line[0] == '#') continue;
+                if (line[0] == '[') {
+                    currentSection = line;
+                    continue;
+                }
+                if (currentSection == "[HEADER]") {
+                    std::stringstream ss(line);
+                    std::string key, val;
+                    if (std::getline(ss, key, '=') && std::getline(ss, val)) {
+                        if (key == "mode") {
+                            mSaveSlots[i].mode = (std::stoi(val) == 1) ? "INFINITE" : "STAGE";
+                        } else if (key == "stage") {
+                            mSaveSlots[i].stage = std::stoi(val);
+                        } else if (key == "score") {
+                            mSaveSlots[i].score = std::stoi(val);
+                        } else if (key == "date") {
+                            mSaveSlots[i].timestamp = val;
+                        }
+                    }
+                }
+            }
+            inFile.close();
+            if (mSaveSlots[i].mode == "STAGE") {
+                mSaveSlots[i].mode = "STAGE " + std::to_string(mSaveSlots[i].stage);
             }
         }
-    } catch (...) {}
-    mSaveFilesList = files;
-    return files;
+    }
 }
 
-bool CGAME::saveGame(const std::string& filename) {
-    if (filename.empty()) return false;
+bool CGAME::saveGame(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 5) return false;
+    std::string actualName = "slot" + std::to_string(slotIndex + 1) + ".txt";
 
-    std::string actualName = filename;
-    if (actualName.find(".txt") == std::string::npos) {
-        actualName += ".txt";
-    }
+    auto now = std::chrono::system_clock::now();
+    auto in_time_t = std::chrono::system_clock::to_time_t(now);
+    struct tm timeinfo;
+#if defined(_MSC_VER)
+    localtime_s(&timeinfo, &in_time_t);
+#else
+    localtime_r(&in_time_t, &timeinfo);
+#endif
+    std::stringstream timeSs;
+    timeSs << std::put_time(&timeinfo, "%Y-%m-%d %H:%M");
+    std::string dateStr = timeSs.str();
 
     try {
         std::filesystem::create_directories("saves");
@@ -1580,6 +1599,7 @@ bool CGAME::saveGame(const std::string& filename) {
 
         outFile << "[HEADER]\n";
         outFile << "version=1\n";
+        outFile << "date=" << dateStr << "\n";
         outFile << "mode=" << (mIsInfinityMode ? 1 : 0) << "\n";
         outFile << "stage=" << mStage << "\n";
         outFile << "score=" << mScore << "\n";
@@ -1657,13 +1677,16 @@ bool CGAME::saveGame(const std::string& filename) {
         outFile << "\n";
 
         outFile.close();
+        scanSaveSlots();
         return true;
     } catch (...) {
         return false;
     }
 }
 
-bool CGAME::loadGame(const std::string& filename) {
+bool CGAME::loadGame(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 5) return false;
+    std::string filename = "slot" + std::to_string(slotIndex + 1) + ".txt";
     std::string fullPath = "saves/" + filename;
     if (!std::filesystem::exists(fullPath)) return false;
 
