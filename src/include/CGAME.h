@@ -115,6 +115,8 @@ private:
 
     MIX_Mixer* mMixer;
     MIX_Track* mBgmTrack;
+    MIX_Track* mSfxTracks[4];
+    int mSfxTrackIndex;
     MIX_Audio* mBgmMenu;
     MIX_Audio* mSfxHit;
     MIX_Audio* mSfxJump;
@@ -123,6 +125,7 @@ private:
     int mBgmVolume;
     int mSfxVolume;
     void updateVolumeSettings();
+    void playSFX(MIX_Audio* sfx);
 
     float mFlashTimer;
 

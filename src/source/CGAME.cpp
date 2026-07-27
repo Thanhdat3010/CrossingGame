@@ -95,8 +95,8 @@ CGAME::CGAME()
       mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
-      mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
-      mSfxHit(nullptr), mSfxJump(nullptr), mAudioMuted(false), mSfxMuted(false),
+      mMixer(nullptr), mBgmTrack(nullptr), mSfxTracks{nullptr, nullptr, nullptr, nullptr}, mSfxTrackIndex(0),
+      mBgmMenu(nullptr), mSfxHit(nullptr), mSfxJump(nullptr), mAudioMuted(false), mSfxMuted(false),
       mBgmVolume(100), mSfxVolume(100),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
@@ -152,12 +152,16 @@ bool CGAME::init(const char* title, int width, int height) {
     // 6. Load âm thanh từ thư mục assets/audio/ (.mp3, .wav, .ogg)
     if (mMixer) {
         mBgmTrack = MIX_CreateTrack(mMixer);
+        for (int i = 0; i < 4; ++i) {
+            mSfxTracks[i] = MIX_CreateTrack(mMixer);
+        }
         mBgmMenu = loadAudioFlexible(mMixer, "assets/audio/bgm_menu");
         mSfxHit = loadAudioFlexible(mMixer, "assets/audio/sfx_hit");
         mSfxJump = loadAudioFlexible(mMixer, "assets/audio/sfx_jump");
 
         if (mBgmMenu && mBgmTrack) {
             playBGM(mBgmTrack, mBgmMenu);
+            updateVolumeSettings();
         }
     }
 
@@ -588,9 +592,7 @@ void CGAME::handleInput() {
                         }
 
                         if (moved) {
-                            if (!mSfxMuted && mMixer && mSfxJump) {
-                                MIX_PlayAudio(mMixer, mSfxJump);
-                            }
+                            playSFX(mSfxJump);
                         }
                     }
                 }
@@ -673,7 +675,7 @@ void CGAME::physicsWorkerFunc() {
                     mPlayer.setDead(true);
                     mState = GameState::GAMEOVER;
                     mFlashTimer = 0.5f;
-                    if (!mSfxMuted && mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
+                    playSFX(mSfxHit);
                 }
             }
         }
@@ -1110,14 +1112,34 @@ void CGAME::renderStageSelect() {
     mFont.drawTextCentered(mRenderer, "USE 'W'/'S' OR 'UP'/'DOWN' TO CHOOSE  -  ENTER TO ENTER THE QUEST", 635, 1, guideColor);
 }
 
+void CGAME::playSFX(MIX_Audio* sfx) {
+    if (mSfxMuted || mSfxVolume == 0 || !mMixer || !sfx) return;
+    float gain = (float)mSfxVolume / 100.0f;
+    int idx = mSfxTrackIndex;
+    mSfxTrackIndex = (mSfxTrackIndex + 1) % 4;
+    MIX_Track* trk = mSfxTracks[idx];
+    if (trk) {
+        MIX_SetTrackAudio(trk, sfx);
+        MIX_SetTrackGain(trk, gain);
+        MIX_PlayTrack(trk, 0);
+    } else {
+        MIX_PlayAudio(mMixer, sfx);
+    }
+}
+
 void CGAME::updateVolumeSettings() {
     if (mMixer) {
+        MIX_SetMixerGain(mMixer, 1.0f);
         float bgmGain = (mAudioMuted || mBgmVolume == 0) ? 0.0f : ((float)mBgmVolume / 100.0f);
         if (mBgmTrack) {
             MIX_SetTrackGain(mBgmTrack, bgmGain);
         }
         float sfxGain = (mSfxMuted || mSfxVolume == 0) ? 0.0f : ((float)mSfxVolume / 100.0f);
-        MIX_SetMixerGain(mMixer, sfxGain);
+        for (int i = 0; i < 4; ++i) {
+            if (mSfxTracks[i]) {
+                MIX_SetTrackGain(mSfxTracks[i], sfxGain);
+            }
+        }
     }
 }
 
@@ -1179,11 +1201,9 @@ void CGAME::renderSettings() {
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    std::string bgmStr = "MUSIC BGM : < " + (mBgmVolume == 0 ? "OFF" : std::to_string(mBgmVolume) + "%") + " >";
-    std::string sfxStr = "SOUND SFX : < " + (mSfxVolume == 0 ? "OFF" : std::to_string(mSfxVolume) + "%") + " >";
-    std::string options[3] = {
-        bgmStr,
-        sfxStr,
+    std::string labels[3] = {
+        "MUSIC BGM :",
+        "SOUND SFX :",
         "BACK TO PREVIOUS MENU"
     };
 
@@ -1204,15 +1224,18 @@ void CGAME::renderSettings() {
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
             mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
-            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, labels[i], (int)(panelX + 80), yPos, 3, selectColor);
         } else {
-            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, normalColor);
+            mFont.drawText(mRenderer, labels[i], (int)(panelX + 80), yPos, 3, normalColor);
         }
 
-        // Draw Volume Progress Bar for Music and SFX
+        // Draw Volume Progress Bar & Percentage text for Music and SFX
         if (i < 2) {
-            float barX = panelX + 540.0f;
-            float barY = (float)yPos + 8.0f;
+            int vol = (i == 0) ? mBgmVolume : mSfxVolume;
+
+            // 1. Progress Bar (X = panelX + 380)
+            float barX = panelX + 380.0f;
+            float barY = (float)yPos + 4.0f;
             float barW = 200.0f;
             float barH = 22.0f;
 
@@ -1220,7 +1243,6 @@ void CGAME::renderSettings() {
             SDL_FRect barBg = { barX, barY, barW, barH };
             SDL_RenderFillRect(mRenderer, &barBg);
 
-            int vol = (i == 0) ? mBgmVolume : mSfxVolume;
             float fillW = barW * ((float)vol / 100.0f);
             if (fillW > 0.0f) {
                 SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
@@ -1230,6 +1252,11 @@ void CGAME::renderSettings() {
 
             SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
             SDL_RenderRect(mRenderer, &barBg);
+
+            // 2. Percentage text (X = panelX + 600)
+            std::string pctText = "< " + (vol == 0 ? "OFF" : std::to_string(vol) + "%") + " >";
+            SDL_Color textCol = (mSelectedSettingsOption == i) ? selectColor : normalColor;
+            mFont.drawText(mRenderer, pctText, (int)(panelX + 600), yPos, 3, textCol);
         }
     }
 
@@ -2343,7 +2370,7 @@ void CGAME::updateInfinite(float deltaTime) {
         mPlayer.setDead(true);
         mState = GameState::GAMEOVER;
         mFlashTimer = 0.5f;
-        if (!mSfxMuted && mMixer && mSfxHit) MIX_PlayAudio(mMixer, mSfxHit);
+        playSFX(mSfxHit);
         return;
     }
 }
