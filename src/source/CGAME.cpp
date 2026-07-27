@@ -2381,9 +2381,9 @@ void CGAME::resetTutorial() {
         }
     };
 
-    spawnLane(LaneType::MONSTER, 120, 3, -1);
+    spawnLane(LaneType::VEHICLE, 120, 3, -1);
     spawnLane(LaneType::MONSTER, 200, 3, 1);
-    spawnLane(LaneType::VEHICLE, 360, 3, 1);
+    spawnLane(LaneType::MONSTER, 360, 3, 1);
     spawnLane(LaneType::VEHICLE, 440, 3, -1);
     spawnLane(LaneType::MONSTER, 520, 3, 1);
 }
