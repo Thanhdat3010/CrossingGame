@@ -112,6 +112,8 @@ private:
     SaveSlotInfo mSaveSlots[5];
     std::string mPendingDeleteFileName;
     GameState mDeleteReturnState;
+    int mPendingSaveSlotIndex;
+    int mPendingLoadSlotIndex;
 
     int mScore;
     int mMaxReachedY;
@@ -155,6 +157,8 @@ private:
     void renderSaveDialog();
     void renderLoadDialog();
     void renderDeleteConfirmDialog();
+    void renderSaveConfirmDialog();
+    void renderLoadConfirmDialog();
     void renderPlaying();
     void toggleMusic();
     void toggleSfx();

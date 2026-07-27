@@ -92,6 +92,7 @@ CGAME::CGAME()
       mSettingsPreviousState(GameState::MENU),
       mLoadPreviousState(GameState::MENU),
       mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
+      mPendingSaveSlotIndex(-1), mPendingLoadSlotIndex(-1),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mSfxTracks{nullptr, nullptr, nullptr, nullptr}, mSfxTrackIndex(0),
@@ -262,6 +263,36 @@ void CGAME::handleInput() {
                 continue;
             }
 
+            if (mPendingSaveSlotIndex >= 0) {
+                // Click YES [Y] button
+                if (mx >= 370.0f && mx <= 610.0f && my >= 400.0f && my <= 460.0f) {
+                    if (saveGame(mPendingSaveSlotIndex)) {
+                        mState = GameState::PLAYING;
+                    }
+                    mPendingSaveSlotIndex = -1;
+                }
+                // Click CANCEL [N] button
+                else if (mx >= 670.0f && mx <= 910.0f && my >= 400.0f && my <= 460.0f) {
+                    mPendingSaveSlotIndex = -1;
+                }
+                continue;
+            }
+
+            if (mPendingLoadSlotIndex >= 0) {
+                // Click YES [Y] button
+                if (mx >= 370.0f && mx <= 610.0f && my >= 400.0f && my <= 460.0f) {
+                    if (loadGame(mPendingLoadSlotIndex)) {
+                        mState = GameState::PLAYING;
+                    }
+                    mPendingLoadSlotIndex = -1;
+                }
+                // Click CANCEL [N] button
+                else if (mx >= 670.0f && mx <= 910.0f && my >= 400.0f && my <= 460.0f) {
+                    mPendingLoadSlotIndex = -1;
+                }
+                continue;
+            }
+
             float panelX = 240.0f, panelW = 800.0f;
             if (mState == GameState::SAVE_DIALOG) {
                 for (int i = 0; i < 5; ++i) {
@@ -275,9 +306,12 @@ void CGAME::handleInput() {
                         mDeleteReturnState = GameState::SAVE_DIALOG;
                         break;
                     }
-                    // Click Row to Select
+                    // Click Row to Select & Prompt Save Confirmation
                     else if (mx >= panelX + 20 && mx <= panelX + panelW - 20 && my >= yPos - 10.0f && my <= yPos + 45.0f) {
                         mSelectedSaveIndex = i;
+                        if (mIsInfinityMode) {
+                            mPendingSaveSlotIndex = i;
+                        }
                         break;
                     }
                 }
@@ -294,9 +328,12 @@ void CGAME::handleInput() {
                         mDeleteReturnState = GameState::LOAD_DIALOG;
                         break;
                     }
-                    // Click Row to Select
+                    // Click Row to Select & Prompt Load Confirmation
                     else if (mx >= panelX + 20 && mx <= panelX + panelW - 20 && my >= yPos - 10.0f && my <= yPos + 45.0f) {
                         mSelectedLoadIndex = i;
+                        if (mSaveSlots[i].exists) {
+                            mPendingLoadSlotIndex = i;
+                        }
                         break;
                     }
                 }
@@ -337,6 +374,32 @@ void CGAME::handleInput() {
                 }
                 else if (key == SDLK_N || key == SDLK_ESCAPE) {
                     mPendingDeleteFileName = "";
+                }
+                continue;
+            }
+
+            if (mPendingSaveSlotIndex >= 0) {
+                if (key == SDLK_Y || key == SDLK_RETURN || key == SDLK_SPACE) {
+                    if (saveGame(mPendingSaveSlotIndex)) {
+                        mState = GameState::PLAYING;
+                    }
+                    mPendingSaveSlotIndex = -1;
+                }
+                else if (key == SDLK_N || key == SDLK_ESCAPE) {
+                    mPendingSaveSlotIndex = -1;
+                }
+                continue;
+            }
+
+            if (mPendingLoadSlotIndex >= 0) {
+                if (key == SDLK_Y || key == SDLK_RETURN || key == SDLK_SPACE) {
+                    if (loadGame(mPendingLoadSlotIndex)) {
+                        mState = GameState::PLAYING;
+                    }
+                    mPendingLoadSlotIndex = -1;
+                }
+                else if (key == SDLK_N || key == SDLK_ESCAPE) {
+                    mPendingLoadSlotIndex = -1;
                 }
                 continue;
             }
@@ -482,9 +545,7 @@ void CGAME::handleInput() {
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
                     if (mIsInfinityMode) {
-                        if (saveGame(mSelectedSaveIndex)) {
-                            mState = GameState::PLAYING;
-                        }
+                        mPendingSaveSlotIndex = mSelectedSaveIndex;
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -505,8 +566,8 @@ void CGAME::handleInput() {
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                    if (mSaveSlots[mSelectedLoadIndex].exists && loadGame(mSelectedLoadIndex)) {
-                        mState = GameState::PLAYING;
+                    if (mSaveSlots[mSelectedLoadIndex].exists) {
+                        mPendingLoadSlotIndex = mSelectedLoadIndex;
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -717,6 +778,12 @@ void CGAME::render() {
 
     if (!mPendingDeleteFileName.empty()) {
         renderDeleteConfirmDialog();
+    }
+    else if (mPendingSaveSlotIndex >= 0) {
+        renderSaveConfirmDialog();
+    }
+    else if (mPendingLoadSlotIndex >= 0) {
+        renderLoadConfirmDialog();
     }
     else if (mState == GameState::PLAYING || mState == GameState::GAMEOVER) {
         renderPlaying();
@@ -1515,6 +1582,121 @@ void CGAME::renderDeleteConfirmDialog() {
     // Nút YES [Y]
     float btnYesX = 370.0f, btnY = panelY + 195.0f, btnW = 240.0f, btnH = 50.0f;
     SDL_SetRenderDrawColor(mRenderer, 200, 40, 40, 255);
+    SDL_FRect btnYes = { btnYesX, btnY, btnW, btnH };
+    SDL_RenderFillRect(mRenderer, &btnYes);
+    SDL_Color btnTextCol = { 255, 255, 255, 255 };
+    mFont.drawTextCenteredInBox(mRenderer, "[ Y ] YES", btnYesX, btnY, btnW, btnH, 2, btnTextCol);
+
+    // Nút CANCEL [N]
+    float btnNoX = 670.0f;
+    SDL_SetRenderDrawColor(mRenderer, 80, 100, 90, 255);
+    SDL_FRect btnNo = { btnNoX, btnY, btnW, btnH };
+    SDL_RenderFillRect(mRenderer, &btnNo);
+    mFont.drawTextCenteredInBox(mRenderer, "[ N ] CANCEL", btnNoX, btnY, btnW, btnH, 2, btnTextCol);
+}
+
+void CGAME::renderSaveConfirmDialog() {
+    if (mPendingSaveSlotIndex < 0 || mPendingSaveSlotIndex >= 5) return;
+
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 180);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    float panelX = 340.0f, panelY = 210.0f;
+    float panelW = 600.0f, panelH = 280.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 240, 255, 250, 245);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 4.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 4, panelW, 4.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 4.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 4, panelY, 4.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    SDL_Color titleColor = { 10, 110, 80, 255 };
+    SDL_Color msgColor = { 40, 40, 40, 255 };
+    SDL_Color slotColor = { 20, 100, 150, 255 };
+    SDL_Color warnColor = { 200, 50, 50, 255 };
+
+    mFont.drawTextCenteredInBox(mRenderer, "SAVE GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 3, titleColor);
+    
+    std::string slotStr = "SLOT " + std::to_string(mPendingSaveSlotIndex + 1);
+    if (mSaveSlots[mPendingSaveSlotIndex].exists) {
+        mFont.drawTextCenteredInBox(mRenderer, "OVERWRITE GAME DATA IN:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+        std::string infoStr = "[ " + slotStr + " : " + mSaveSlots[mPendingSaveSlotIndex].timestamp + " ]";
+        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+        mFont.drawTextCenteredInBox(mRenderer, "PREVIOUS DATA IN THIS SLOT WILL BE REPLACED!", panelX, panelY + 145, panelW, 20, 1, warnColor);
+    } else {
+        mFont.drawTextCenteredInBox(mRenderer, "SAVE CURRENT PROGRESS TO:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+        std::string infoStr = "[ " + slotStr + " : NEW SAVE ]";
+        mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+        mFont.drawTextCenteredInBox(mRenderer, "GAME STATE WILL BE SAVED TO THIS SLOT", panelX, panelY + 145, panelW, 20, 1, titleColor);
+    }
+
+    // Nút YES [Y]
+    float btnYesX = 370.0f, btnY = panelY + 195.0f, btnW = 240.0f, btnH = 50.0f;
+    SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+    SDL_FRect btnYes = { btnYesX, btnY, btnW, btnH };
+    SDL_RenderFillRect(mRenderer, &btnYes);
+    SDL_Color btnTextCol = { 255, 255, 255, 255 };
+    mFont.drawTextCenteredInBox(mRenderer, "[ Y ] YES", btnYesX, btnY, btnW, btnH, 2, btnTextCol);
+
+    // Nút CANCEL [N]
+    float btnNoX = 670.0f;
+    SDL_SetRenderDrawColor(mRenderer, 80, 100, 90, 255);
+    SDL_FRect btnNo = { btnNoX, btnY, btnW, btnH };
+    SDL_RenderFillRect(mRenderer, &btnNo);
+    mFont.drawTextCenteredInBox(mRenderer, "[ N ] CANCEL", btnNoX, btnY, btnW, btnH, 2, btnTextCol);
+}
+
+void CGAME::renderLoadConfirmDialog() {
+    if (mPendingLoadSlotIndex < 0 || mPendingLoadSlotIndex >= 5) return;
+
+    SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 180);
+    SDL_FRect overlay = { 0, 0, 1280.0f, 720.0f };
+    SDL_RenderFillRect(mRenderer, &overlay);
+
+    float panelX = 340.0f, panelY = 210.0f;
+    float panelW = 600.0f, panelH = 280.0f;
+
+    SDL_SetRenderDrawColor(mRenderer, 240, 250, 255, 245);
+    SDL_FRect panelBg = { panelX, panelY, panelW, panelH };
+    SDL_RenderFillRect(mRenderer, &panelBg);
+
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 180, 255);
+    SDL_FRect borderTop    = { panelX, panelY, panelW, 4.0f };
+    SDL_FRect borderBottom = { panelX, panelY + panelH - 4, panelW, 4.0f };
+    SDL_FRect borderLeft   = { panelX, panelY, 4.0f, panelH };
+    SDL_FRect borderRight  = { panelX + panelW - 4, panelY, 4.0f, panelH };
+    SDL_RenderFillRect(mRenderer, &borderTop);
+    SDL_RenderFillRect(mRenderer, &borderBottom);
+    SDL_RenderFillRect(mRenderer, &borderLeft);
+    SDL_RenderFillRect(mRenderer, &borderRight);
+
+    SDL_Color titleColor = { 20, 90, 160, 255 };
+    SDL_Color msgColor = { 40, 40, 40, 255 };
+    SDL_Color slotColor = { 10, 110, 80, 255 };
+    SDL_Color warnColor = { 200, 50, 50, 255 };
+
+    mFont.drawTextCenteredInBox(mRenderer, "LOAD GAME CONFIRMATION", panelX, panelY + 15, panelW, 30, 3, titleColor);
+    mFont.drawTextCenteredInBox(mRenderer, "LOAD SAVED PROGRESS FROM:", panelX, panelY + 65, panelW, 25, 2, msgColor);
+    
+    std::string slotStr = "SLOT " + std::to_string(mPendingLoadSlotIndex + 1);
+    std::string infoStr = "[ " + slotStr + " : " + mSaveSlots[mPendingLoadSlotIndex].timestamp + " | SCORE:" + std::to_string(mSaveSlots[mPendingLoadSlotIndex].score) + " ]";
+    mFont.drawTextCenteredInBox(mRenderer, infoStr, panelX, panelY + 105, panelW, 25, 2, slotColor);
+    mFont.drawTextCenteredInBox(mRenderer, "UNSAVED CURRENT PROGRESS WILL BE LOST!", panelX, panelY + 145, panelW, 20, 1, warnColor);
+
+    // Nút YES [Y]
+    float btnYesX = 370.0f, btnY = panelY + 195.0f, btnW = 240.0f, btnH = 50.0f;
+    SDL_SetRenderDrawColor(mRenderer, 20, 100, 180, 255);
     SDL_FRect btnYes = { btnYesX, btnY, btnW, btnH };
     SDL_RenderFillRect(mRenderer, &btnYes);
     SDL_Color btnTextCol = { 255, 255, 255, 255 };
