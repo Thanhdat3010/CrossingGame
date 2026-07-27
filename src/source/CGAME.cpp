@@ -481,8 +481,10 @@ void CGAME::handleInput() {
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                    if (saveGame(mSelectedSaveIndex)) {
-                        mState = GameState::PLAYING;
+                    if (mIsInfinityMode) {
+                        if (saveGame(mSelectedSaveIndex)) {
+                            mState = GameState::PLAYING;
+                        }
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -1265,7 +1267,7 @@ void CGAME::renderPauseMenu() {
 
     std::string options[5] = {
         "1. RESUME GAME",
-        "2. SAVE GAME  (L)",
+        mIsInfinityMode ? "2. SAVE GAME  (L)" : "2. SAVE GAME  (DISABLED IN TUTORIAL)",
         "3. LOAD GAME  (T)",
         "4. SETTINGS",
         "5. MAIN MENU"
@@ -1307,9 +1309,16 @@ void CGAME::renderSaveDialog() {
     SDL_Color titleShadow = {0, 0, 0, 80};
     SDL_Color titleColor = {255, 255, 255, 255};
     SDL_Color subtitleColor = {220, 245, 255, 255};
+    SDL_Color warnSubtitleColor = {255, 180, 180, 255};
+
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 98, 4, titleShadow);
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 96, 4, titleColor);
-    mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
+
+    if (!mIsInfinityMode) {
+        mFont.drawTextCentered(mRenderer, "TUTORIAL MODE CANNOT BE SAVED! INFINITE MODE ONLY", 146, 2, warnSubtitleColor);
+    } else {
+        mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
+    }
 
     float panelX = 240.0f, panelY = 210.0f;
     float panelW = 800.0f, panelH = 430.0f;
@@ -1337,7 +1346,7 @@ void CGAME::renderSaveDialog() {
         int yPos = startY + i * 65;
         std::string slotLabel;
         if (mSaveSlots[i].exists) {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + "  " + mSaveSlots[i].mode + "  SCORE:" + std::to_string(mSaveSlots[i].score);
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + " | SCORE: " + std::to_string(mSaveSlots[i].score);
         } else {
             slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
         }
@@ -1376,7 +1385,11 @@ void CGAME::renderSaveDialog() {
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
+    if (!mIsInfinityMode) {
+        mFont.drawTextCentered(mRenderer, "CANNOT SAVE IN TUTORIAL  -  PRESS ESC TO RETURN", 655, 1, guideColor);
+    } else {
+        mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
+    }
 }
 
 void CGAME::renderLoadDialog() {
@@ -1418,7 +1431,7 @@ void CGAME::renderLoadDialog() {
         int yPos = startY + i * 65;
         std::string slotLabel;
         if (mSaveSlots[i].exists) {
-            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + "  " + mSaveSlots[i].mode + "  SCORE:" + std::to_string(mSaveSlots[i].score);
+            slotLabel = "SLOT " + std::to_string(i + 1) + " : " + mSaveSlots[i].timestamp + " | SCORE: " + std::to_string(mSaveSlots[i].score);
         } else {
             slotLabel = "SLOT " + std::to_string(i + 1) + " : [ EMPTY ]";
         }
