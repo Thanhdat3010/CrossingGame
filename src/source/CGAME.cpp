@@ -97,6 +97,7 @@ CGAME::CGAME()
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
       mMixer(nullptr), mBgmTrack(nullptr), mBgmMenu(nullptr),
       mSfxHit(nullptr), mSfxJump(nullptr), mAudioMuted(false), mSfxMuted(false),
+      mBgmVolume(100), mSfxVolume(100),
       mFlashTimer(0.0f), mIsThreadRunning(false) {}
 
 CGAME::~CGAME() {
@@ -408,16 +409,33 @@ void CGAME::handleInput() {
             }
             else if (mState == GameState::SETTINGS) {
                 if (key == SDLK_W || key == SDLK_UP) {
-                    mSelectedSettingsOption = (mSelectedSettingsOption - 1 + 2) % 2;
+                    mSelectedSettingsOption = (mSelectedSettingsOption - 1 + 3) % 3;
                 }
                 else if (key == SDLK_S || key == SDLK_DOWN) {
-                    mSelectedSettingsOption = (mSelectedSettingsOption + 1) % 2;
+                    mSelectedSettingsOption = (mSelectedSettingsOption + 1) % 3;
                 }
-                else if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_A || key == SDLK_D || key == SDLK_LEFT || key == SDLK_RIGHT) {
+                else if (key == SDLK_A || key == SDLK_LEFT) {
                     if (mSelectedSettingsOption == 0) {
-                        toggleMusic();
-                    } else {
-                        toggleSfx();
+                        mBgmVolume = std::max(0, mBgmVolume - 25);
+                        mAudioMuted = (mBgmVolume == 0);
+                        updateVolumeSettings();
+                    } else if (mSelectedSettingsOption == 1) {
+                        mSfxVolume = std::max(0, mSfxVolume - 25);
+                        mSfxMuted = (mSfxVolume == 0);
+                        updateVolumeSettings();
+                    }
+                }
+                else if (key == SDLK_D || key == SDLK_RIGHT || key == SDLK_RETURN || key == SDLK_SPACE) {
+                    if (mSelectedSettingsOption == 0) {
+                        mBgmVolume = (mBgmVolume >= 100) ? 0 : mBgmVolume + 25;
+                        mAudioMuted = (mBgmVolume == 0);
+                        updateVolumeSettings();
+                    } else if (mSelectedSettingsOption == 1) {
+                        mSfxVolume = (mSfxVolume >= 100) ? 0 : mSfxVolume + 25;
+                        mSfxMuted = (mSfxVolume == 0);
+                        updateVolumeSettings();
+                    } else if (mSelectedSettingsOption == 2) {
+                        mState = mSettingsPreviousState;
                     }
                 }
                 else if (key == SDLK_ESCAPE) {
@@ -667,6 +685,14 @@ void CGAME::physicsWorkerFunc() {
 void CGAME::update(float deltaTime) {
     // Cập nhật bộ đếm animation menu (chạy liên tục cho hiệu ứng sin wave)
     mMenuAnimTimer += deltaTime;
+
+    // Tự động phát lại Nhạc nền BGM liên tục khi bài nhạc phát tới giây cuối cùng
+    if (mMixer && mBgmTrack && mBgmMenu && !mAudioMuted && mBgmVolume > 0) {
+        if (!MIX_TrackPlaying(mBgmTrack)) {
+            playBGM(mBgmTrack, mBgmMenu);
+            updateVolumeSettings();
+        }
+    }
 
     // Cập nhật bộ đếm thời gian cảnh báo của Menu
     if (mShowMenuWarning) {
@@ -1084,17 +1110,37 @@ void CGAME::renderStageSelect() {
     mFont.drawTextCentered(mRenderer, "USE 'W'/'S' OR 'UP'/'DOWN' TO CHOOSE  -  ENTER TO ENTER THE QUEST", 635, 1, guideColor);
 }
 
-void CGAME::toggleMusic() {
-    mAudioMuted = !mAudioMuted;
-    if (mAudioMuted) {
-        if (mBgmTrack) MIX_PauseTrack(mBgmTrack);
-    } else {
-        if (mBgmTrack) MIX_ResumeTrack(mBgmTrack);
+void CGAME::updateVolumeSettings() {
+    if (mMixer) {
+        float bgmGain = (mAudioMuted || mBgmVolume == 0) ? 0.0f : ((float)mBgmVolume / 100.0f);
+        if (mBgmTrack) {
+            MIX_SetTrackGain(mBgmTrack, bgmGain);
+        }
+        float sfxGain = (mSfxMuted || mSfxVolume == 0) ? 0.0f : ((float)mSfxVolume / 100.0f);
+        MIX_SetMixerGain(mMixer, sfxGain);
     }
 }
 
+void CGAME::toggleMusic() {
+    if (mBgmVolume > 0) {
+        mBgmVolume = 0;
+        mAudioMuted = true;
+    } else {
+        mBgmVolume = 100;
+        mAudioMuted = false;
+    }
+    updateVolumeSettings();
+}
+
 void CGAME::toggleSfx() {
-    mSfxMuted = !mSfxMuted;
+    if (mSfxVolume > 0) {
+        mSfxVolume = 0;
+        mSfxMuted = true;
+    } else {
+        mSfxVolume = 100;
+        mSfxMuted = false;
+    }
+    updateVolumeSettings();
 }
 
 void CGAME::renderSettings() {
@@ -1113,10 +1159,10 @@ void CGAME::renderSettings() {
     SDL_Color subtitleColor = {220, 245, 255, 255};
     mFont.drawTextCentered(mRenderer, "SETTINGS", 98, 4, titleShadow);
     mFont.drawTextCentered(mRenderer, "SETTINGS", 96, 4, titleColor);
-    mFont.drawTextCentered(mRenderer, "AUDIO & SOUND OPTIONS", 146, 2, subtitleColor);
+    mFont.drawTextCentered(mRenderer, "AUDIO & VOLUME CONTROLS", 146, 2, subtitleColor);
 
-    float panelX = 240.0f, panelY = 220.0f;
-    float panelW = 800.0f, panelH = 380.0f;
+    float panelX = 240.0f, panelY = 210.0f;
+    float panelW = 800.0f, panelH = 430.0f;
 
     SDL_SetRenderDrawBlendMode(mRenderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 160);
@@ -1133,40 +1179,62 @@ void CGAME::renderSettings() {
     SDL_RenderFillRect(mRenderer, &borderLeft);
     SDL_RenderFillRect(mRenderer, &borderRight);
 
-    std::string options[2] = {
-        mAudioMuted ? "MUSIC BGM : [ OFF ]" : "MUSIC BGM : [ ON ]",
-        mSfxMuted   ? "SOUND SFX : [ OFF ]" : "SOUND SFX : [ ON ]"
+    std::string bgmStr = "MUSIC BGM : < " + (mBgmVolume == 0 ? "OFF" : std::to_string(mBgmVolume) + "%") + " >";
+    std::string sfxStr = "SOUND SFX : < " + (mSfxVolume == 0 ? "OFF" : std::to_string(mSfxVolume) + "%") + " >";
+    std::string options[3] = {
+        bgmStr,
+        sfxStr,
+        "BACK TO PREVIOUS MENU"
     };
 
     SDL_Color normalColor = {30, 60, 50, 255};
     SDL_Color selectColor = {10, 95, 75, 255};
 
-    for (int i = 0; i < 2; ++i) {
-        int yPos = 310 + i * 80;
+    for (int i = 0; i < 3; ++i) {
+        int yPos = 265 + i * 85;
 
         if (mSelectedSettingsOption == i) {
             SDL_SetRenderDrawColor(mRenderer, 20, 120, 100, 60);
-            SDL_FRect highlight = { panelX + 20, (float)yPos - 15, panelW - 40, 55.0f };
+            SDL_FRect highlight = { panelX + 20, (float)yPos - 15, panelW - 40, 65.0f };
             SDL_RenderFillRect(mRenderer, &highlight);
 
             SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
-            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 15, 4.0f, 55.0f };
+            SDL_FRect hlBorder = { panelX + 20, (float)yPos - 15, 4.0f, 65.0f };
             SDL_RenderFillRect(mRenderer, &hlBorder);
 
             float arrowOffset = sinf(mMenuAnimTimer * 5.0f) * 4.0f;
-            mFont.drawText(mRenderer, ">", (int)(panelX + 50 + arrowOffset), yPos, 3, selectColor);
-            mFont.drawText(mRenderer, options[i], (int)(panelX + 90), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, ">", (int)(panelX + 40 + arrowOffset), yPos, 3, selectColor);
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, selectColor);
         } else {
-            mFont.drawText(mRenderer, options[i], (int)(panelX + 90), yPos, 3, normalColor);
+            mFont.drawText(mRenderer, options[i], (int)(panelX + 80), yPos, 3, normalColor);
+        }
+
+        // Draw Volume Progress Bar for Music and SFX
+        if (i < 2) {
+            float barX = panelX + 540.0f;
+            float barY = (float)yPos + 8.0f;
+            float barW = 200.0f;
+            float barH = 22.0f;
+
+            SDL_SetRenderDrawColor(mRenderer, 50, 70, 65, 200);
+            SDL_FRect barBg = { barX, barY, barW, barH };
+            SDL_RenderFillRect(mRenderer, &barBg);
+
+            int vol = (i == 0) ? mBgmVolume : mSfxVolume;
+            float fillW = barW * ((float)vol / 100.0f);
+            if (fillW > 0.0f) {
+                SDL_SetRenderDrawColor(mRenderer, 80, 200, 255, 255);
+                SDL_FRect barFill = { barX, barY, fillW, barH };
+                SDL_RenderFillRect(mRenderer, &barFill);
+            }
+
+            SDL_SetRenderDrawColor(mRenderer, 20, 140, 100, 255);
+            SDL_RenderRect(mRenderer, &barBg);
         }
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    if (mSettingsPreviousState == GameState::PAUSED) {
-        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC BACK TO PAUSE", 635, 1, guideColor);
-    } else {
-        mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  ENTER / A / D TO TOGGLE  -  ESC TO RETURN", 635, 1, guideColor);
-    }
+    mFont.drawTextCentered(mRenderer, "W/S TO SELECT  -  A/D OR LEFT/RIGHT TO ADJUST VOLUME  -  ESC TO RETURN", 655, 1, guideColor);
 }
 
 void CGAME::renderPauseMenu() {

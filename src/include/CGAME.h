@@ -120,6 +120,9 @@ private:
     MIX_Audio* mSfxJump;
     bool mAudioMuted;
     bool mSfxMuted;
+    int mBgmVolume;
+    int mSfxVolume;
+    void updateVolumeSettings();
 
     float mFlashTimer;
 
