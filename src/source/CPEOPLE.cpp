@@ -194,5 +194,5 @@ bool CPEOPLE::isImpact(CANIMAL* a) {
     return (playerBox.x < animalBox.x + animalBox.w &&
             playerBox.x + playerBox.w > animalBox.x &&
             playerBox.y < animalBox.y + animalBox.h &&
-            playerBox.y + animalBox.h > animalBox.y);
+            playerBox.y + playerBox.h > animalBox.y);
 }

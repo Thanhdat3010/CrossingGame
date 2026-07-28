@@ -369,16 +369,21 @@ Do đó, đồ án đã cài đặt **Cơ chế Đèn Giao Thông Lệch Pha Th�
   * Thời gian Đèn Xanh ($T_{green}$): $5.0$ giây.
   * Tổng chu kỳ luân chuyển ($T_{total} = T_{red} + T_{green}$): $8.0$ giây.
 * **Tạo độ trễ lệch pha (Phase Offset Initialization)**:
-  Khi khởi tạo các làn đường xe chạy trong `resetTutorial()` hoặc `initInfiniteLanes()`, mỗi đối tượng `CTRAFFICLIGHT` được gán một biến độ trễ ban đầu `mPhaseOffset` (giá trị từ $0.0s$ đến $4.0s$):
+  Khi khởi tạo các làn đường xe chạy trong `resetTutorial()` hoặc `initInfiniteLanes()`, mỗi đối tượng `CTRAFFICLIGHT` tự động tính toán một biến độ trễ lệch pha ban đầu `initialOffset` dựa trên vị trí tọa độ làn `mLaneY` trong hàm khởi tạo constructor:
   ```cpp
-  // Ví dụ: Làn 1 khởi tạo lệch pha 0.0s, Làn 2 khởi tạo lệch pha 3.5s
-  CTRAFFICLIGHT t1(120, 3.0f, 5.0f, 0.0f); 
-  CTRAFFICLIGHT t2(440, 3.0f, 5.0f, 3.5f);
+  // Tính độ trễ lệch pha tự động từ tọa độ làn laneY trong constructor CTRAFFICLIGHT
+  float totalCycle = redDur + greenDur;
+  float initialOffset = fmodf((float)std::abs(laneY * 17 + 13), totalCycle);
+  if (initialOffset < redDur) {
+      mIsRed = true;
+      mTimer = initialOffset;
+  } else {
+      mIsRed = false;
+      mTimer = initialOffset - redDur;
+  }
   ```
 * **Cập nhật trạng thái trong Luồng Vật lý 100Hz (Thread-Safe Update)**:
-  Trong luồng vật lý độc lập `mPhysicsThread`, thời gian tích lũy `mTimer` tăng lên theo `deltaTime`. Trạng thái màu đèn `mIsRed` được xác định theo toán tử chia lấy dư thời gian thực:
-  $$\text{phaseTime} = \text{fmod}(mTimer + mPhaseOffset, T_{total})$$
-  $$\text{mIsRed} = \begin{cases} \text{true} & \text{nếu } \text{phaseTime} < T_{red} \ (3.0s) \\ \text{false} & \text{nếu } \text{phaseTime} \ge T_{red} \ (3.0s) \end{cases}$$
+  Trong luồng vật lý độc lập `mPhysicsThread`, thời gian tích lũy `mTimer` tăng lên theo `deltaTime`. Khi `mTimer` vượt quá thời hạn giữ đèn hiện tại `currentLimit` (`mRedDuration` 3.0s hoặc `mGreenDuration` 5.0s), màu đèn `mIsRed` tự động đảo ngược trạng thái và trừ lùi thời gian dư `mTimer -= currentLimit`.
 
 #### 3. Tương tác Luồng Xe & Kết xuất Đồ họa Neon
 * Khi `t.isRed() == true`, hàm vật lý kiểm tra làn xe tương ứng và gọi `vehicle->setSpeed(0)`, khiến luồng xe bay `CBLUEWING` và `CSKYARMOR` dừng lại hoàn toàn trước vạch dừng. Khi `t.isRed() == false`, luồng xe tự động phục hồi vận tốc di chuyển ban đầu `vehicle->restoreSpeed()`.
