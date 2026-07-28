@@ -169,7 +169,7 @@ private:
 
     void clearObstacles();
 
-    void resetTutorial();
+    void resetEasyMode();
     void resetInfinite();
     void initInfiniteLanes();
     void addLaneAbove();

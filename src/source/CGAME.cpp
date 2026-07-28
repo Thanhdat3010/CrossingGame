@@ -1119,7 +1119,7 @@ void CGAME::renderStageSelect() {
     SDL_RenderFillRect(mRenderer, &borderRight);
 
     std::string stages[2] = {
-        "TUTORIAL: 1 MAP (SAFE START)",
+        "EASY MODE: 1 MAP (SAFE START)",
         "INFINITE MODE: SURVIVAL"
     };
 
@@ -1382,7 +1382,7 @@ void CGAME::renderSaveDialog() {
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 96, 4, titleColor);
 
     if (!mIsInfinityMode) {
-        mFont.drawTextCentered(mRenderer, "TUTORIAL MODE CANNOT BE SAVED! INFINITE MODE ONLY", 146, 2, warnSubtitleColor);
+        mFont.drawTextCentered(mRenderer, "EASY MODE CANNOT BE SAVED! INFINITE MODE ONLY", 146, 2, warnSubtitleColor);
     } else {
         mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
     }
@@ -1468,7 +1468,7 @@ void CGAME::renderSaveDialog() {
 
     SDL_Color guideColor = {255, 255, 255, 200};
     if (!mIsInfinityMode) {
-        mFont.drawTextCentered(mRenderer, "CANNOT SAVE IN TUTORIAL  -  PRESS ESC TO RETURN", 655, 1, guideColor);
+        mFont.drawTextCentered(mRenderer, "CANNOT SAVE IN EASY MODE  -  PRESS ESC TO RETURN", 655, 1, guideColor);
     } else {
         mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
     }
@@ -2329,7 +2329,7 @@ void CGAME::renderPlaying() {
 
     SDL_Color hudColor = {255, 255, 255, 255};
     SDL_Color cyanGlow = {80, 200, 255, 255};
-    std::string hudStageText = "MODE: TUTORIAL";
+    std::string hudStageText = "MODE: EASY MODE";
     
     SDL_Color shadow = {0, 0, 0, 180};
     mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
@@ -2350,7 +2350,7 @@ void CGAME::resetGame() {
     if (mIsInfinityMode) {
         resetInfinite();
     } else {
-        resetTutorial();
+        resetEasyMode();
     }
 }
 
@@ -2359,7 +2359,7 @@ int CGAME::randomRange(int minValue, int maxValue) const {
     return minValue + (rand() % (maxValue - minValue + 1));
 }
 
-void CGAME::resetTutorial() {
+void CGAME::resetEasyMode() {
     mIsInfinityMode = false;
     mStage = 1;
     mInfiniteLevel = 1;

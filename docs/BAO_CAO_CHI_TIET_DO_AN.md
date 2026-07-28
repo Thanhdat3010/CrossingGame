@@ -40,7 +40,7 @@
 4. [CHI TIẾT MỌI TÍNH NĂNG GAMEPLAY, THUẬT TOÁN VÀ UI/UX HỆ THỐNG NÂNG CAO](#4-chi-tiết-mọi-tính-năng-gameplay-thuật-toán-và-uiux-hệ-thống-nâng-cao)
    - 4.1 Cơ chế Điều khiển Single-Tap & Chống Đè Phím
    - 4.2 Cơ chế Đèn Giao Thông Lệch Pha Thời Gian (Multi-threaded Asynchronous Phase Shift)
-   - 4.3 Chế độ chơi Tutorial (Chiến dịch Cố định & Chuẩn hóa Làn Đường)
+   - 4.3 Chế độ chơi Easy Mode (Chiến dịch Cố định 1 Map Safe Start & Chuẩn hóa Làn Đường)
    - 4.4 Chế độ chơi Infinite Mode (Procedural Lane Spawning, Memory Pruning & Camera Tracking)
    - 4.5 Thuật toán Tính điểm (+1 Score / Lane) & Va chạm AABB Hitbox
    - 4.6 Hệ thống Lưu/Tải Game Visual Novel 5-Slot Fixed & Hộp Thoại Xác Nhận (Confirmation Dialogs)
@@ -146,7 +146,7 @@ classDiagram
         +handleInput()
         +update()
         +render()
-        +resetTutorial()
+        +resetEasyMode()
         +resetInfinite()
         +saveGame(slotIndex)
         +loadGame(slotIndex)
@@ -336,7 +336,7 @@ classDiagram
 * **Quản lý Trạng thái GameState**:
   * `MENU`: Màn hình thực đơn chính.
   * `CHAR_SELECT`: Màn hình chọn nhân vật (Kirito / Asuna).
-  * `STAGE_SELECT`: Màn hình chọn chế độ chơi (Tutorial / Infinite).
+  * `STAGE_SELECT`: Màn hình chọn chế độ chơi (Easy Mode / Infinite Mode).
   * `SETTINGS`: Màn hình cài đặt âm thanh 3 cột chuẩn đẹp.
   * `PLAYING`: Màn chơi đang diễn ra.
   * `PAUSED`: Tạm dừng màn chơi.
@@ -369,7 +369,7 @@ Do đó, đồ án đã cài đặt **Cơ chế Đèn Giao Thông Lệch Pha Th�
   * Thời gian Đèn Xanh ($T_{green}$): $5.0$ giây.
   * Tổng chu kỳ luân chuyển ($T_{total} = T_{red} + T_{green}$): $8.0$ giây.
 * **Tạo độ trễ lệch pha (Phase Offset Initialization)**:
-  Khi khởi tạo các làn đường xe chạy trong `resetTutorial()` hoặc `initInfiniteLanes()`, mỗi đối tượng `CTRAFFICLIGHT` tự động tính toán một biến độ trễ lệch pha ban đầu `initialOffset` dựa trên vị trí tọa độ làn `mLaneY` trong hàm khởi tạo constructor:
+  Khi khởi tạo các làn đường xe chạy trong `resetEasyMode()` hoặc `initInfiniteLanes()`, mỗi đối tượng `CTRAFFICLIGHT` tự động tính toán một biến độ trễ lệch pha ban đầu `initialOffset` dựa trên vị trí tọa độ làn `mLaneY` trong hàm khởi tạo constructor:
   ```cpp
   // Tính độ trễ lệch pha tự động từ tọa độ làn laneY trong constructor CTRAFFICLIGHT
   float totalCycle = redDur + greenDur;
@@ -391,15 +391,15 @@ Do đó, đồ án đã cài đặt **Cơ chế Đèn Giao Thông Lệch Pha Th�
 
 ---
 
-### 4.3 Chế độ chơi Tutorial (Chiến dịch Cố định & Chuẩn hóa Làn Đường)
-Chế độ Tutorial cung cấp cho người chơi mới một màn chơi chiến dịch cố định để làm quen với cơ chế di chuyển, quan sát xe cộ và đèn giao thông:
+### 4.3 Chế độ chơi Easy Mode (Chiến dịch Cố định 1 Map Safe Start & Chuẩn hóa Làn Đường)
+Chế độ Easy Mode cung cấp cho người chơi mới một màn chơi chiến dịch 1 map cố định với tốc độ an toàn (Safe Start) để làm quen với cơ chế di chuyển, quan sát xe cộ và đèn giao thông:
 * **Chuẩn hóa Phân loại 6 Làn Đường Cố định**:
   1. **Tọa độ Y = 0.0f ➔ 120.0f (Vỉa Hè An Toàn Phía Trên - Safe Zone Destination)**: Dải cỏ thiên nhiên Aincrad trang trí hoa rực rỡ. Khi nhân vật bước vào dải này, hàm `isFinish()` trả về `true` và kích hoạt chiến thắng `VICTORY!`.
-  2. **Tọa độ Y = 120.0f (Làn Xe Đường Bộ 1 - `VEHICLE`)**: Kết cấu mặt đường nhựa `mLaneRoadTexture` có vạch kẻ đường, kết hợp Cột Đèn Giao Thông `t1` (lệch pha `0.0s`) điều khiển luồng xe bay `CBLUEWING` / `CSKYARMOR` di chuyển từ phải sang trái.
+  2. **Tọa độ Y = 120.0f (Làn Xe Đường Bộ 1 - `VEHICLE`)**: Kết cấu mặt đường nhựa `mLaneRoadTexture` có vạch kẻ đường, kết hợp Cột Đèn Giao Thông `t1` điều khiển luồng xe bay `CBLUEWING` / `CSKYARMOR` di chuyển từ phải sang trái.
   3. **Tọa độ Y = 200.0f (Làn Rừng Quái Vật 1 - `MONSTER`)**: Kết cấu rừng xanh `mLaneForestTexture` chứa các quái vật Boss SAO (`CILLFANG`, `CICEDRAGON`, `CHEATHCLIFF`, `CGLEAMEYES`) di chuyển từ trái sang phải.
   4. **Tọa độ Y = 280.0f (Làn Nghỉ An Toàn Trung Tâm - `REST`)**: Kết cấu vỉa hè đá mờ an toàn, là nơi người chơi có thể tạm dừng chân nghỉ ngơi căn thời gian nhảy tiếp mà không sợ bị va chạm.
   5. **Tọa độ Y = 360.0f (Làn Rừng Quái Vật 2 - `MONSTER`)**: Kết cấu rừng xanh `mLaneForestTexture` chứa quái vật SAO di chuyển từ trái sang phải.
-  6. **Tọa độ Y = 440.0f (Làn Xe Đường Bộ 2 - `VEHICLE`)**: Kết cấu mặt đường nhựa `mLaneRoadTexture` kết hợp Cột Đèn Giao Thông `t2` (lệch pha `3.5s`) điều khiển luồng xe bay di chuyển từ phải sang trái.
+  6. **Tọa độ Y = 440.0f (Làn Xe Đường Bộ 2 - `VEHICLE`)**: Kết cấu mặt đường nhựa `mLaneRoadTexture` kết hợp Cột Đèn Giao Thông `t2` điều khiển luồng xe bay di chuyển từ phải sang trái.
   7. **Tọa độ Y = 520.0f (Làn Rừng Quái Vật 3 - `MONSTER`)**: Kết cấu rừng xanh `mLaneForestTexture` chứa quái vật SAO.
   8. **Tọa độ Y = 600.0f ➔ 720.0f (Vỉa Hè An Toàn Phía Dưới - Safe Zone Start)**: Dải xuất phát ban đầu của nhân vật.
 
@@ -462,7 +462,7 @@ Thay vì sử dụng hộp thoại nhập tên file tự do bằng bàn phím d�
   stage=1
   score=99
   ```
-* **Khóa Lưu ở Chế độ Tutorial**: Tiến trình chơi màn Tutorial là cố định ngắn hạn. Để tránh rác dữ liệu lưu và bảo toàn logic màn chơi, hệ thống kiểm tra `if (!mIsInfinityMode)` để vô hiệu hóa tính năng Save ở chế độ Tutorial, đồng thời hiển thị thông báo cảnh báo màu đỏ `"TUTORIAL MODE CANNOT BE SAVED! INFINITE MODE ONLY"`.
+* **Khóa Lưu ở Chế độ Easy Mode**: Tiến trình chơi màn Easy Mode là cố định ngắn hạn. Để tránh rác dữ liệu lưu và bảo toàn logic màn chơi, hệ thống kiểm tra `if (!mIsInfinityMode)` để vô hiệu hóa tính năng Save ở chế độ Easy Mode, đồng thời hiển thị thông báo cảnh báo màu đỏ `"EASY MODE CANNOT BE SAVED! INFINITE MODE ONLY"`.
 
 #### 2. Hộp thoại Xác nhận An toàn 3 Trạng thái (Confirmation Modal Dialogs)
 Để ngăn ngừa tuyệt đối hành vi lỡ tay xóa nhầm file save quý giá hoặc ghi đè đè đè tiến trình đang chơi, hệ thống xây dựng 3 bảng Popup nổi xác nhận chuyên biệt (`renderSaveConfirmDialog()`, `renderLoadConfirmDialog()`, `renderDeleteConfirmDialog()`):
@@ -514,7 +514,7 @@ Trong các phiên bản phát triển ban đầu, việc điều chỉnh master 
 > 📍 **[VỊ TRÍ CHÈN HÌNH ÁNH 8: Màn hình Chọn Chế Độ Chơi]**
 > 
 > ![Màn hình Chọn Chế Độ Chơi](images/ui_stage_select.png)
-> *Hình 8: Màn hình Chọn Chế Độ Chơi (Tutorial vs Infinite Mode)*
+> *Hình 8: Màn hình Chọn Chế Độ Chơi (Easy Mode vs Infinite Mode)*
 
 > 📍 **[VỊ TRÍ CHÈN HÌNH ÁNH 9: Giao diện Màn chơi Infinite Mode]**
 > 
@@ -561,8 +561,8 @@ Trong các phiên bản phát triển ban đầu, việc điều chỉnh master 
 
 | Trang Đề Bài | Tiêu Chí Chấm Điểm | Mức Độ Hoàn Thành & Chi Tiết Cài Đặt | Điểm Đánh Giá |
 |---|---|---|---|
-| **Trang 11** | **4.1 Cài đặt chạy đúng kịch bản (3.0đ)** | **HOÀN THÀNH 100%**<br>- Di chuyển W/A/S/D & Mũi tên mượt mà Single-Tap.<br>- Xử lý va chạm chớp đỏ màn hình + âm thanh `sfx_hit`.<br>- Màn hình GameOver hỏi chơi lại (`Y`) hoặc thoát (`N`/`ESC`).<br>- Chế độ Tutorial cố định chuẩn hóa làn đường & Infinite vô tận. | **3.0 / 3.0đ** |
-| **Trang 11** | **4.2 Thực đơn Menu khởi đầu (1.0đ)** | **HOÀN THÀNH 100%**<br>- Menu chính phong cách SAO Aincrad Frosted Glass.<br>- Màn hình Chọn Nhân vật (Kirito/Asuna), Chọn chế độ (Tutorial/Infinite) và Cài đặt âm thanh 3 cột. | **1.0 / 1.0đ** |
+| **Trang 11** | **4.1 Cài đặt chạy đúng kịch bản (3.0đ)** | **HOÀN THÀNH 100%**<br>- Di chuyển W/A/S/D & Mũi tên mượt mà Single-Tap.<br>- Xử lý va chạm chớp đỏ màn hình + âm thanh `sfx_hit`.<br>- Màn hình GameOver hỏi chơi lại (`Y`) hoặc thoát (`N`/`ESC`).<br>- Chế độ Easy Mode cố định 1 map safe start & Infinite vô tận. | **3.0 / 3.0đ** |
+| **Trang 11** | **4.2 Thực đơn Menu khởi đầu (1.0đ)** | **HOÀN THÀNH 100%**<br>- Menu chính phong cách SAO Aincrad Frosted Glass.<br>- Màn hình Chọn Nhân vật (Kirito/Asuna), Chọn chế độ (Easy Mode/Infinite) và Cài đặt âm thanh 3 cột. | **1.0 / 1.0đ** |
 | **Trang 11-12**| **4.3 Xử lý Lưu/Tải trò chơi (3.0đ)** | **HOÀN THÀNH 100%**<br>- Hệ thống 5 Slot cố định Visual Novel (`slot1.txt` ➔ `slot5.txt`) trình bày lưới 3 cột thẳng hàng.<br>- Có Hộp thoại Xác nhận (Confirmation Modals) khi Save/Load/Delete.<br>- Khôi phục 100% vị trí nhân vật, hướng đi, điểm số và màn chơi. | **3.0 / 3.0đ** |
 | **Trang 12** | **4.4 Xử lý Tạm dừng xe bằng Đèn giao thông (2.0đ)** | **HOÀN THÀNH 100%**<br>- Lớp `CTRAFFICLIGHT` quản lý đếm giờ Đỏ (3s) và Xanh (5s) có Lệch pha thời gian (Asynchronous Phase Shift).<br>- Tự động hãm dừng luồng xe `CVEHICLE` khi gặp đèn đỏ. | **2.0 / 2.0đ** |
 | **Trang 12** | **4.5 Hiệu ứng khi va chạm & Âm thanh (0.5đ)** | **HOÀN THÀNH 100%**<br>- Màn hình chớp mờ đỏ va chạm 0.5s.<br>- Kênh âm thanh Sound Pool 4-track tách độc lập BGM & SFX. Nhạc nền lặp liên tục mượt mà. | **0.5 / 0.5đ** |
