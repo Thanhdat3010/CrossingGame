@@ -2149,8 +2149,8 @@ void CGAME::renderPlaying() {
         mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
         mFont.drawText(mRenderer, hudStageText, 20, 24, 2, cyanGlow);
 
-        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 882, 26, 2, shadow);
-        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 880, 24, 2, hudColor);
+        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 776, 26, 2, shadow);
+        mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 774, 24, 2, hudColor);
         return;
     }
 
@@ -2335,8 +2335,8 @@ void CGAME::renderPlaying() {
     mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
     mFont.drawText(mRenderer, hudStageText, 20, 24, 2, cyanGlow);
     
-    mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 882, 26, 2, shadow);
-    mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 880, 24, 2, hudColor);
+    mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 776, 26, 2, shadow);
+    mFont.drawText(mRenderer, "PRESS ESC TO RETURN TO MENU", 774, 24, 2, hudColor);
 }
 
 void CGAME::startGame() {
