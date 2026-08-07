@@ -17,6 +17,10 @@ CPEOPLE::CPEOPLE() {
 }
 
 CPEOPLE::~CPEOPLE() {
+    freeTextures();
+}
+
+void CPEOPLE::freeTextures() {
     if (mKiritoTexture) {
         SDL_DestroyTexture(mKiritoTexture);
         mKiritoTexture = nullptr;

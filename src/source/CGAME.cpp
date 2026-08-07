@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <algorithm>
 #include <cmath> // Dùng cho sin() tạo animation nhấp nháy
 
 namespace {
@@ -85,13 +86,14 @@ CGAME::CGAME()
       mBgMenuTexture(nullptr), mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
+      mTrafficLightRedTexture(nullptr), mTrafficLightGreenTexture(nullptr),
       mStage(1), mIsInfinityMode(false),
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
       mSettingsPreviousState(GameState::MENU),
       mLoadPreviousState(GameState::MENU),
-      mPendingDeleteFileName(""), mDeleteReturnState(GameState::SAVE_DIALOG),
+      mPendingDeleteFileName(""),
       mPendingSaveSlotIndex(-1), mPendingLoadSlotIndex(-1),
       mScore(0), mMaxReachedY(0),
       mShowMenuWarning(false), mWarningTimer(0.0f), mMenuAnimTimer(0.0f),
@@ -134,6 +136,7 @@ bool CGAME::init(const char* title, int width, int height) {
     if (!mRenderer) {
         std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(mWindow);
+        mWindow = nullptr;
         MIX_Quit();
         SDL_Quit();
         return false;
@@ -143,7 +146,9 @@ bool CGAME::init(const char* title, int width, int height) {
     if (!mFont.init(mRenderer)) {
         std::cerr << "Failed to initialize font!" << std::endl;
         SDL_DestroyRenderer(mRenderer);
+        mRenderer = nullptr;
         SDL_DestroyWindow(mWindow);
+        mWindow = nullptr;
         MIX_Quit();
         SDL_Quit();
         return false;
@@ -175,22 +180,18 @@ bool CGAME::init(const char* title, int width, int height) {
     // 1. CGLEAMEYES
     mCGleameyesTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cgleameyes1.png");
     mCGleameyesTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cgleameyes2.png");
-    if (!mCGleameyesTexture2) mCGleameyesTexture2 = mCGleameyesTexture1;
 
     // 2. CHEATHCLIFF
     mCheathcliffTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cheathcliff1.png");
     mCheathcliffTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cheathcliff2.png");
-    if (!mCheathcliffTexture2) mCheathcliffTexture2 = mCheathcliffTexture1;
 
     // 3. CILLFANG
     mCillfangTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cillfang1.png");
     mCillfangTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cillfang2.png");
-    if (!mCillfangTexture2) mCillfangTexture2 = mCillfangTexture1;
 
     // 4. CICEDRAGON
     mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon1.png");
     mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon2.png");
-    if (!mCicedragonTexture2) mCicedragonTexture2 = mCicedragonTexture1;
     mBgMenuTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_menu.png");
     mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_playing.png");
     mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_top.png");
@@ -200,6 +201,8 @@ bool CGAME::init(const char* title, int width, int height) {
     mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_road.png");
     mCbluewingTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cbluewing.png");
     mCskyarmorTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cskyarmor.png");
+    mTrafficLightRedTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/traffic_light_red.png");
+    mTrafficLightGreenTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/traffic_light_green.png");
 
     // Load ảnh các nhân vật Kirito & Asuna
     mPlayer.loadTextures(mRenderer);
@@ -252,7 +255,7 @@ void CGAME::handleInput() {
             if (!mPendingDeleteFileName.empty()) {
                 // Click YES [Y] button
                 if (mx >= 370.0f && mx <= 610.0f && my >= 400.0f && my <= 460.0f) {
-                    std::filesystem::remove("saves/" + mPendingDeleteFileName);
+                    try { std::filesystem::remove("saves/" + mPendingDeleteFileName); } catch (...) {}
                     mPendingDeleteFileName = "";
                     scanSaveSlots();
                 }
@@ -303,7 +306,6 @@ void CGAME::handleInput() {
                     // Click Red [X] Delete Button
                     if (mSaveSlots[i].exists && mx >= btnX && mx <= btnX + 45.0f && my >= btnY && my <= btnY + 35.0f) {
                         mPendingDeleteFileName = mSaveSlots[i].filename;
-                        mDeleteReturnState = GameState::SAVE_DIALOG;
                         break;
                     }
                     // Click Row to Select & Prompt Save Confirmation
@@ -325,7 +327,6 @@ void CGAME::handleInput() {
                     // Click Red [X] Delete Button
                     if (mSaveSlots[i].exists && mx >= btnX && mx <= btnX + 45.0f && my >= btnY && my <= btnY + 35.0f) {
                         mPendingDeleteFileName = mSaveSlots[i].filename;
-                        mDeleteReturnState = GameState::LOAD_DIALOG;
                         break;
                     }
                     // Click Row to Select & Prompt Load Confirmation
@@ -368,7 +369,7 @@ void CGAME::handleInput() {
 
             if (!mPendingDeleteFileName.empty()) {
                 if (key == SDLK_Y) {
-                    std::filesystem::remove("saves/" + mPendingDeleteFileName);
+                    try { std::filesystem::remove("saves/" + mPendingDeleteFileName); } catch (...) {}
                     mPendingDeleteFileName = "";
                     scanSaveSlots();
                 }
@@ -540,7 +541,6 @@ void CGAME::handleInput() {
                 else if (key == SDLK_DELETE) {
                     if (mSaveSlots[mSelectedSaveIndex].exists) {
                         mPendingDeleteFileName = mSaveSlots[mSelectedSaveIndex].filename;
-                        mDeleteReturnState = GameState::SAVE_DIALOG;
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
@@ -562,7 +562,6 @@ void CGAME::handleInput() {
                 else if (key == SDLK_DELETE) {
                     if (mSaveSlots[mSelectedLoadIndex].exists) {
                         mPendingDeleteFileName = mSaveSlots[mSelectedLoadIndex].filename;
-                        mDeleteReturnState = GameState::LOAD_DIALOG;
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
@@ -657,57 +656,58 @@ void CGAME::physicsWorkerFunc() {
         if (deltaTime > 0.1f) deltaTime = 0.1f;
         lastTick = currentTick;
 
-        if (mState == GameState::PLAYING) {
+        {
             std::lock_guard<std::mutex> lock(mGameMutex);
-
-            // 1. Cập nhật Đèn giao thông
-            for (auto& light : mTrafficLights) {
-                light.update(deltaTime);
-            }
-
-            if (mIsInfinityMode) {
-                updateInfinite(deltaTime);
-            } else {
-                mPlayer.update(deltaTime);
-
-                bool road1Red = false;
-                bool road2Red = false;
-                for (const auto& light : mTrafficLights) {
-                    if (light.getLaneY() == 120 && light.isRed()) road1Red = true;
-                    if (light.getLaneY() == 440 && light.isRed()) road2Red = true;
+            if (mState == GameState::PLAYING) {
+                // 1. Cập nhật Đèn giao thông
+                for (auto& light : mTrafficLights) {
+                    light.update(deltaTime);
                 }
 
-                // Di chuyển quái vật
-                moveObstacleList(mGleameyes, 0, 1280);
-                moveObstacleList(mCheathcliffs, 0, 1280);
-                moveObstacleList(mCillfangs, 0, 1280);
-                moveObstacleList(mCicedragons, 0, 1280);
+                if (mIsInfinityMode) {
+                    updateInfinite(deltaTime);
+                } else {
+                    mPlayer.update(deltaTime);
 
-                // Di chuyển xe nếu đèn không đỏ
-                for (auto bw : mBluewings) {
-                    if (bw->getY() == 120 && road1Red) continue;
-                    if (bw->getY() == 440 && road2Red) continue;
-                    bw->Move(0, 1280);
-                }
-                for (auto sa : mSkyarmors) {
-                    if (sa->getY() == 120 && road1Red) continue;
-                    if (sa->getY() == 440 && road2Red) continue;
-                    sa->Move(0, 1280);
-                }
+                    bool road1Red = false;
+                    bool road2Red = false;
+                    for (const auto& light : mTrafficLights) {
+                        if (light.getLaneY() == 120 && light.isRed()) road1Red = true;
+                        if (light.getLaneY() == 440 && light.isRed()) road2Red = true;
+                    }
 
-                if (mPlayer.isFinish()) {
-                    mState = GameState::GAMEOVER;
-                }
-                else if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
-                    hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
-                    hitPlayerAgainstList(mPlayer, mCillfangs) ||
-                    hitPlayerAgainstList(mPlayer, mCicedragons) ||
-                    hitPlayerAgainstList(mPlayer, mBluewings) ||
-                    hitPlayerAgainstList(mPlayer, mSkyarmors)) {
-                    mPlayer.setDead(true);
-                    mState = GameState::GAMEOVER;
-                    mFlashTimer = 0.5f;
-                    playSFX(mSfxHit);
+                    // Di chuyển quái vật
+                    moveObstacleList(mGleameyes, 0, 1280);
+                    moveObstacleList(mCheathcliffs, 0, 1280);
+                    moveObstacleList(mCillfangs, 0, 1280);
+                    moveObstacleList(mCicedragons, 0, 1280);
+
+                    // Di chuyển xe nếu đèn không đỏ
+                    for (auto bw : mBluewings) {
+                        if (bw->getY() == 120 && road1Red) continue;
+                        if (bw->getY() == 440 && road2Red) continue;
+                        bw->Move(0, 1280);
+                    }
+                    for (auto sa : mSkyarmors) {
+                        if (sa->getY() == 120 && road1Red) continue;
+                        if (sa->getY() == 440 && road2Red) continue;
+                        sa->Move(0, 1280);
+                    }
+
+                    if (mPlayer.isFinish()) {
+                        mState = GameState::GAMEOVER;
+                    }
+                    else if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
+                        hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
+                        hitPlayerAgainstList(mPlayer, mCillfangs) ||
+                        hitPlayerAgainstList(mPlayer, mCicedragons) ||
+                        hitPlayerAgainstList(mPlayer, mBluewings) ||
+                        hitPlayerAgainstList(mPlayer, mSkyarmors)) {
+                        mPlayer.setDead(true);
+                        mState = GameState::GAMEOVER;
+                        mFlashTimer = 0.5f;
+                        playSFX(mSfxHit);
+                    }
                 }
             }
         }
@@ -1181,27 +1181,7 @@ void CGAME::updateVolumeSettings() {
     }
 }
 
-void CGAME::toggleMusic() {
-    if (mBgmVolume > 0) {
-        mBgmVolume = 0;
-        mAudioMuted = true;
-    } else {
-        mBgmVolume = 100;
-        mAudioMuted = false;
-    }
-    updateVolumeSettings();
-}
 
-void CGAME::toggleSfx() {
-    if (mSfxVolume > 0) {
-        mSfxVolume = 0;
-        mSfxMuted = true;
-    } else {
-        mSfxVolume = 100;
-        mSfxMuted = false;
-    }
-    updateVolumeSettings();
-}
 
 void CGAME::renderSettings() {
     if (mSettingsPreviousState == GameState::PAUSED) {
@@ -1750,54 +1730,60 @@ void CGAME::scanSaveSlots() {
         std::string fullPath = "saves/" + fname;
 
         mSaveSlots[i].filename = fname;
-        if (!std::filesystem::exists(fullPath)) {
-            mSaveSlots[i].exists = false;
-            mSaveSlots[i].timestamp = "";
+        try {
+            if (!std::filesystem::exists(fullPath)) {
+                mSaveSlots[i].exists = false;
+                mSaveSlots[i].timestamp = "";
+                mSaveSlots[i].score = 0;
+                mSaveSlots[i].mode = "";
+                mSaveSlots[i].stage = 1;
+                continue;
+            }
+
+            mSaveSlots[i].exists = true;
             mSaveSlots[i].score = 0;
-            mSaveSlots[i].mode = "";
+            mSaveSlots[i].mode = "STAGE";
             mSaveSlots[i].stage = 1;
-            continue;
-        }
+            mSaveSlots[i].timestamp = "---";
 
-        mSaveSlots[i].exists = true;
-        mSaveSlots[i].score = 0;
-        mSaveSlots[i].mode = "STAGE";
-        mSaveSlots[i].stage = 1;
-        mSaveSlots[i].timestamp = "---";
-
-        std::ifstream inFile(fullPath);
-        if (inFile.is_open()) {
-            std::string line;
-            std::string currentSection = "";
-            while (std::getline(inFile, line)) {
-                if (line.empty() || line[0] == '#') continue;
-                if (line[0] == '[') {
-                    currentSection = line;
-                    continue;
-                }
-                if (currentSection == "[HEADER]") {
-                    std::stringstream ss(line);
-                    std::string key, val;
-                    if (std::getline(ss, key, '=') && std::getline(ss, val)) {
-                        if (key == "mode") {
-                            mSaveSlots[i].mode = (std::stoi(val) == 1) ? "INFINITE" : "STAGE";
-                        } else if (key == "stage") {
-                            mSaveSlots[i].stage = std::stoi(val);
-                        } else if (key == "score") {
-                            mSaveSlots[i].score = std::stoi(val);
-                        } else if (key == "date") {
-                            if (val.length() >= 16 && val[4] == '-') {
-                                val = val.substr(5);
+            std::ifstream inFile(fullPath);
+            if (inFile.is_open()) {
+                std::string line;
+                std::string currentSection = "";
+                while (std::getline(inFile, line)) {
+                    if (line.empty() || line[0] == '#') continue;
+                    if (line[0] == '[') {
+                        currentSection = line;
+                        continue;
+                    }
+                    if (currentSection == "[HEADER]") {
+                        std::stringstream ss(line);
+                        std::string key, val;
+                        if (std::getline(ss, key, '=') && std::getline(ss, val)) {
+                            if (key == "mode") {
+                                int mVal = 0;
+                                try { mVal = std::stoi(val); } catch (...) { mVal = 0; }
+                                mSaveSlots[i].mode = (mVal == 1) ? "INFINITE" : "STAGE";
+                            } else if (key == "stage") {
+                                try { mSaveSlots[i].stage = std::stoi(val); } catch (...) { mSaveSlots[i].stage = 1; }
+                            } else if (key == "score") {
+                                try { mSaveSlots[i].score = std::stoi(val); } catch (...) { mSaveSlots[i].score = 0; }
+                            } else if (key == "date") {
+                                if (val.length() >= 16 && val[4] == '-') {
+                                    val = val.substr(5);
+                                }
+                                mSaveSlots[i].timestamp = val;
                             }
-                            mSaveSlots[i].timestamp = val;
                         }
                     }
                 }
+                inFile.close();
+                if (mSaveSlots[i].mode == "STAGE") {
+                    mSaveSlots[i].mode = "STAGE " + std::to_string(mSaveSlots[i].stage);
+                }
             }
-            inFile.close();
-            if (mSaveSlots[i].mode == "STAGE") {
-                mSaveSlots[i].mode = "STAGE " + std::to_string(mSaveSlots[i].stage);
-            }
+        } catch (...) {
+            mSaveSlots[i].exists = false;
         }
     }
 }
@@ -1904,9 +1890,13 @@ bool CGAME::saveGame(int slotIndex) {
         }
         outFile << "\n";
 
+        outFile.flush();
+        bool success = outFile.good();
         outFile.close();
-        scanSaveSlots();
-        return true;
+        if (success) {
+            scanSaveSlots();
+        }
+        return success;
     } catch (...) {
         return false;
     }
@@ -1916,23 +1906,39 @@ bool CGAME::loadGame(int slotIndex) {
     if (slotIndex < 0 || slotIndex >= 5) return false;
     std::string filename = "slot" + std::to_string(slotIndex + 1) + ".txt";
     std::string fullPath = "saves/" + filename;
-    if (!std::filesystem::exists(fullPath)) return false;
+    try {
+        if (!std::filesystem::exists(fullPath)) return false;
+    } catch (...) {
+        return false;
+    }
+
+    // Temporary snapshot variables to parse file before touching active game state
+    bool parsedIsInfinityMode = false;
+    int parsedStage = 1;
+    int parsedScore = 0;
+    int parsedMaxReachedY = 0;
+    float parsedCameraY = 0.0f;
+    int parsedInfiniteLevel = 1;
+    int parsedLanePatternIndex = 0;
+
+    int parsedCharType = 0;
+    int parsedPlayerX = 600, parsedPlayerY = 600, parsedPlayerState = 1;
+
+    std::vector<CTRAFFICLIGHT> tempTrafficLights;
+    std::vector<Lane> tempLanes;
+    std::vector<CBLUEWING*> tempBluewings;
+    std::vector<CSKYARMOR*> tempSkyarmors;
+    std::vector<CGLEAMEYES*> tempGleameyes;
+    std::vector<CHEATHCLIFF*> tempCheathcliffs;
+    std::vector<CILLFANG*> tempCillfangs;
+    std::vector<CICEDRAGON*> tempCicedragons;
 
     try {
         std::ifstream inFile(fullPath);
         if (!inFile.is_open()) return false;
 
-        std::lock_guard<std::mutex> lock(mGameMutex);
-
-        clearObstacles();
-        mTrafficLights.clear();
-        mLanes.clear();
-
         std::string line;
         std::string currentSection = "";
-
-        int charType = 0;
-        int playerX = 600, playerY = 600, playerState = 1;
 
         while (std::getline(inFile, line)) {
             if (line.empty() || line[0] == '#') continue;
@@ -1945,22 +1951,22 @@ bool CGAME::loadGame(int slotIndex) {
             if (currentSection == "[HEADER]") {
                 std::string key, val;
                 if (std::getline(ss, key, '=') && std::getline(ss, val)) {
-                    if (key == "mode") mIsInfinityMode = (std::stoi(val) == 1);
-                    else if (key == "stage") mStage = std::stoi(val);
-                    else if (key == "score") mScore = std::stoi(val);
-                    else if (key == "max_reached_y") mMaxReachedY = std::stoi(val);
-                    else if (key == "camera_y") mCameraY = std::stof(val);
-                    else if (key == "infinite_level") mInfiniteLevel = std::stoi(val);
-                    else if (key == "lane_pattern_index") mLanePatternIndex = std::stoi(val);
+                    if (key == "mode") parsedIsInfinityMode = (std::stoi(val) == 1);
+                    else if (key == "stage") parsedStage = std::stoi(val);
+                    else if (key == "score") parsedScore = std::stoi(val);
+                    else if (key == "max_reached_y") parsedMaxReachedY = std::stoi(val);
+                    else if (key == "camera_y") parsedCameraY = std::stof(val);
+                    else if (key == "infinite_level") parsedInfiniteLevel = std::stoi(val);
+                    else if (key == "lane_pattern_index") parsedLanePatternIndex = std::stoi(val);
                 }
             }
             else if (currentSection == "[PLAYER]") {
                 std::string key, val;
                 if (std::getline(ss, key, '=') && std::getline(ss, val)) {
-                    if (key == "char_type") charType = std::stoi(val);
-                    else if (key == "x") playerX = std::stoi(val);
-                    else if (key == "y") playerY = std::stoi(val);
-                    else if (key == "state") playerState = std::stoi(val);
+                    if (key == "char_type") parsedCharType = std::stoi(val);
+                    else if (key == "x") parsedPlayerX = std::stoi(val);
+                    else if (key == "y") parsedPlayerY = std::stoi(val);
+                    else if (key == "state") parsedPlayerState = std::stoi(val);
                 }
             }
             else if (currentSection == "[TRAFFIC_LIGHTS]") {
@@ -1969,9 +1975,8 @@ bool CGAME::loadGame(int slotIndex) {
                 float timer = 0.0f, redDur = 3.0f, greenDur = 5.0f;
                 if (ss >> laneY >> isRedInt >> timer >> redDur >> greenDur) {
                     CTRAFFICLIGHT light(laneY, redDur, greenDur);
-                    light.initTextures(mRenderer);
                     light.setState(isRedInt == 1, timer);
-                    mTrafficLights.push_back(light);
+                    tempTrafficLights.push_back(light);
                 }
             }
             else if (currentSection == "[LANES]") {
@@ -1981,7 +1986,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> typeStr >> worldY) {
                     LaneType lt = (typeStr == "REST") ? LaneType::REST :
                                  (typeStr == "VEHICLE" ? LaneType::VEHICLE : LaneType::MONSTER);
-                    mLanes.push_back({ lt, worldY });
+                    tempLanes.push_back({ lt, worldY });
                 }
             }
             else if (currentSection == "[BLUEWINGS]") {
@@ -1990,7 +1995,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CBLUEWING* bw = new CBLUEWING(x, y, speed, dir);
                     bw->setTexture(mCbluewingTexture);
-                    mBluewings.push_back(bw);
+                    tempBluewings.push_back(bw);
                 }
             }
             else if (currentSection == "[SKYARMORS]") {
@@ -1999,7 +2004,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CSKYARMOR* sa = new CSKYARMOR(x, y, speed, dir);
                     sa->setTexture(mCskyarmorTexture);
-                    mSkyarmors.push_back(sa);
+                    tempSkyarmors.push_back(sa);
                 }
             }
             else if (currentSection == "[GLEAMEYES]") {
@@ -2008,7 +2013,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CGLEAMEYES* ge = new CGLEAMEYES(x, y, speed, dir);
                     ge->setTextures(mCGleameyesTexture1, mCGleameyesTexture2);
-                    mGleameyes.push_back(ge);
+                    tempGleameyes.push_back(ge);
                 }
             }
             else if (currentSection == "[CHEATHCLIFFS]") {
@@ -2017,7 +2022,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CHEATHCLIFF* hc = new CHEATHCLIFF(x, y, speed, dir);
                     hc->setTextures(mCheathcliffTexture1, mCheathcliffTexture2);
-                    mCheathcliffs.push_back(hc);
+                    tempCheathcliffs.push_back(hc);
                 }
             }
             else if (currentSection == "[CILLFANGS]") {
@@ -2026,7 +2031,7 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CILLFANG* cf = new CILLFANG(x, y, speed, dir);
                     cf->setTextures(mCillfangTexture1, mCillfangTexture2);
-                    mCillfangs.push_back(cf);
+                    tempCillfangs.push_back(cf);
                 }
             }
             else if (currentSection == "[ICEDRAGONS]") {
@@ -2035,20 +2040,53 @@ bool CGAME::loadGame(int slotIndex) {
                 if (ss >> x >> y >> speed >> dir) {
                     CICEDRAGON* id = new CICEDRAGON(x, y, speed, dir);
                     id->setTextures(mCicedragonTexture1, mCicedragonTexture2);
-                    mCicedragons.push_back(id);
+                    tempCicedragons.push_back(id);
                 }
             }
         }
-
-        mSelectedCharOption = charType;
-        mPlayer.setCharacter(charType == 0 ? CPEOPLE::CharacterType::KIRITO : CPEOPLE::CharacterType::ASUNA);
-        mPlayer.setPosition(playerX, playerY);
-        mPlayer.setDead(playerState == 0);
-
         inFile.close();
-        mState = GameState::PLAYING;
+
+        // Swap snapshot into actual game state under thread lock safely
+        {
+            std::lock_guard<std::mutex> lock(mGameMutex);
+
+            clearObstacles();
+            mTrafficLights.clear();
+            mLanes.clear();
+
+            mIsInfinityMode = parsedIsInfinityMode;
+            mStage = parsedStage;
+            mScore = parsedScore;
+            mMaxReachedY = parsedMaxReachedY;
+            mCameraY = parsedCameraY;
+            mInfiniteLevel = parsedInfiniteLevel;
+            mLanePatternIndex = parsedLanePatternIndex;
+
+            mTrafficLights = std::move(tempTrafficLights);
+            mLanes = std::move(tempLanes);
+            mBluewings = std::move(tempBluewings);
+            mSkyarmors = std::move(tempSkyarmors);
+            mGleameyes = std::move(tempGleameyes);
+            mCheathcliffs = std::move(tempCheathcliffs);
+            mCillfangs = std::move(tempCillfangs);
+            mCicedragons = std::move(tempCicedragons);
+
+            mSelectedCharOption = parsedCharType;
+            mPlayer.setCharacter(parsedCharType == 0 ? CPEOPLE::CharacterType::KIRITO : CPEOPLE::CharacterType::ASUNA);
+            mPlayer.setPosition(parsedPlayerX, parsedPlayerY);
+            mPlayer.setDead(parsedPlayerState == 0);
+
+            mState = GameState::PLAYING;
+        }
         return true;
     } catch (...) {
+        // Clean up temporary dynamically allocated obstacle pointers if parsing failed
+        clearObstacleList(tempBluewings);
+        clearObstacleList(tempSkyarmors);
+        clearObstacleList(tempGleameyes);
+        clearObstacleList(tempCheathcliffs);
+        clearObstacleList(tempCillfangs);
+        clearObstacleList(tempCicedragons);
         return false;
     }
 }
@@ -2128,7 +2166,7 @@ void CGAME::renderPlaying() {
         drawObstacleList(mSkyarmors, mRenderer, mFont, mCameraY);
 
         for (auto& tl : mTrafficLights) {
-            tl.draw(mRenderer, mFont, mCameraY);
+            tl.draw(mRenderer, mFont, mCameraY, mTrafficLightRedTexture, mTrafficLightGreenTexture);
         }
 
         mPlayer.draw(mRenderer, mFont, mCameraY);
@@ -2314,7 +2352,7 @@ void CGAME::renderPlaying() {
         sa->draw(mRenderer, mFont, 0.0f);
     }
     for (auto& tl : mTrafficLights) {
-        tl.draw(mRenderer, mFont, 0.0f);
+        tl.draw(mRenderer, mFont, 0.0f, mTrafficLightRedTexture, mTrafficLightGreenTexture);
     }
 
     mPlayer.draw(mRenderer, mFont, 0.0f);
@@ -2682,11 +2720,17 @@ void CGAME::exitGame() {
     if (mCbluewingTexture) { SDL_DestroyTexture(mCbluewingTexture); mCbluewingTexture = nullptr; }
     if (mCskyarmorTexture) { SDL_DestroyTexture(mCskyarmorTexture); mCskyarmorTexture = nullptr; }
     
+    if (mTrafficLightRedTexture) { SDL_DestroyTexture(mTrafficLightRedTexture); mTrafficLightRedTexture = nullptr; }
+    if (mTrafficLightGreenTexture) { SDL_DestroyTexture(mTrafficLightGreenTexture); mTrafficLightGreenTexture = nullptr; }
+    
     if (mSwordTexture) {
         SDL_DestroyTexture(mSwordTexture);
         mSwordTexture = nullptr;
     }
     
+    mPlayer.freeTextures();
+    mFont.free();
+
     if (mRenderer) {
         SDL_DestroyRenderer(mRenderer);
         mRenderer = nullptr;

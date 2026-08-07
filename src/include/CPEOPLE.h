@@ -34,6 +34,7 @@ public:
     void setPosition(int x, int y);
     void setCharacter(CharacterType type);
     void loadTextures(SDL_Renderer* renderer);
+    void freeTextures();
 
     bool isImpact(CVEHICLE* v);
     bool isImpact(CANIMAL* a);

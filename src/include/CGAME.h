@@ -78,6 +78,8 @@ private:
     SDL_Texture* mLaneRoadTexture;
     SDL_Texture* mCbluewingTexture;
     SDL_Texture* mCskyarmorTexture;
+    SDL_Texture* mTrafficLightRedTexture;
+    SDL_Texture* mTrafficLightGreenTexture;
 
     CPEOPLE mPlayer;
 
@@ -111,7 +113,6 @@ private:
 
     SaveSlotInfo mSaveSlots[5];
     std::string mPendingDeleteFileName;
-    GameState mDeleteReturnState;
     int mPendingSaveSlotIndex;
     int mPendingLoadSlotIndex;
 
@@ -148,7 +149,6 @@ private:
     void render();
 
     void renderMenuBackground();
-    void loadObstacleTextures();
     void renderMenu();
     void renderCharSelect();
     void renderStageSelect();
@@ -160,8 +160,6 @@ private:
     void renderSaveConfirmDialog();
     void renderLoadConfirmDialog();
     void renderPlaying();
-    void toggleMusic();
-    void toggleSfx();
 
     bool saveGame(int slotIndex);
     bool loadGame(int slotIndex);

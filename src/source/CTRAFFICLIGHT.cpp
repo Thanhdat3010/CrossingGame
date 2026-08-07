@@ -4,8 +4,7 @@
 
 CTRAFFICLIGHT::CTRAFFICLIGHT(int laneY, float redDur, float greenDur)
     : mLaneY(laneY), mIsRed(false), mTimer(0.0f),
-      mRedDuration(redDur), mGreenDuration(greenDur),
-      mRedTexture(nullptr), mGreenTexture(nullptr) {
+      mRedDuration(redDur), mGreenDuration(greenDur) {
     if (laneY != 0) {
         float totalCycle = redDur + greenDur;
         float initialOffset = fmodf((float)std::abs(laneY * 17 + 13), totalCycle);
@@ -20,9 +19,8 @@ CTRAFFICLIGHT::CTRAFFICLIGHT(int laneY, float redDur, float greenDur)
 }
 
 void CTRAFFICLIGHT::initTextures(SDL_Renderer* renderer) {
-    if (!renderer) return;
-    mRedTexture = IMG_LoadTexture(renderer, "assets/images/environment/traffic_light_red.png");
-    mGreenTexture = IMG_LoadTexture(renderer, "assets/images/environment/traffic_light_green.png");
+    // Shared textures managed by CGAME to avoid texture leaks
+    (void)renderer;
 }
 
 void CTRAFFICLIGHT::update(float deltaTime) {
@@ -34,7 +32,7 @@ void CTRAFFICLIGHT::update(float deltaTime) {
     }
 }
 
-void CTRAFFICLIGHT::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
+void CTRAFFICLIGHT::draw(SDL_Renderer* renderer, CFont& font, float cameraY, SDL_Texture* redTex, SDL_Texture* greenTex) {
     float screenY = (float)mLaneY - cameraY;
     // Bỏ qua nếu làn nằm ngoài màn hình
     if (screenY < -80.0f || screenY > 720.0f) return;
@@ -43,12 +41,12 @@ void CTRAFFICLIGHT::draw(SDL_Renderer* renderer, CFont& font, float cameraY) {
     float lightXList[] = { 15.0f, 1225.0f };
 
     for (float lightX : lightXList) {
-        if (mIsRed && mRedTexture) {
+        if (mIsRed && redTex) {
             SDL_FRect dst = { lightX, screenY + 10.0f, 40.0f, 60.0f };
-            SDL_RenderTexture(renderer, mRedTexture, NULL, &dst);
-        } else if (!mIsRed && mGreenTexture) {
+            SDL_RenderTexture(renderer, redTex, NULL, &dst);
+        } else if (!mIsRed && greenTex) {
             SDL_FRect dst = { lightX, screenY + 10.0f, 40.0f, 60.0f };
-            SDL_RenderTexture(renderer, mGreenTexture, NULL, &dst);
+            SDL_RenderTexture(renderer, greenTex, NULL, &dst);
         } else {
             // --- VẼ ĐÈN BẰNG CODE THUẦN PIXEL ART (Option A Fallback) ---
             // 1. Thân cột kim loại (Cột chữ nhật xám)
