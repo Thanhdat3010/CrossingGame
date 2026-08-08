@@ -70,7 +70,6 @@ private:
     SDL_Texture* mCicedragonTexture1;
     SDL_Texture* mCicedragonTexture2;
     SDL_Texture* mBgMenuTexture;
-    SDL_Texture* mBgPlayingTexture;
     SDL_Texture* mSidewalkTopTexture;
     SDL_Texture* mSidewalkBottomTexture;
     SDL_Texture* mLaneRestTexture;

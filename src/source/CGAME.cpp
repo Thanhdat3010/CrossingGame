@@ -83,7 +83,7 @@ CGAME::CGAME()
       mCheathcliffTexture1(nullptr), mCheathcliffTexture2(nullptr),
       mCillfangTexture1(nullptr), mCillfangTexture2(nullptr),
       mCicedragonTexture1(nullptr), mCicedragonTexture2(nullptr),
-      mBgMenuTexture(nullptr), mBgPlayingTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
+      mBgMenuTexture(nullptr), mSidewalkTopTexture(nullptr), mSidewalkBottomTexture(nullptr),
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mTrafficLightRedTexture(nullptr), mTrafficLightGreenTexture(nullptr),
@@ -191,9 +191,7 @@ bool CGAME::init(const char* title, int width, int height) {
 
     // 4. CICEDRAGON
     mCicedragonTexture1 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon1.png");
-    mCicedragonTexture2 = IMG_LoadTexture(mRenderer, "assets/images/monsters/cicedragon2.png");
     mBgMenuTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_menu.png");
-    mBgPlayingTexture = IMG_LoadTexture(mRenderer, "assets/images/ui/bg_playing.png");
     mSidewalkTopTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_top.png");
     mSidewalkBottomTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/sidewalk_bottom.png");
     mLaneRestTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_rest.png");
@@ -201,8 +199,6 @@ bool CGAME::init(const char* title, int width, int height) {
     mLaneRoadTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/lane_road.png");
     mCbluewingTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cbluewing.png");
     mCskyarmorTexture = IMG_LoadTexture(mRenderer, "assets/images/vehicles/cskyarmor.png");
-    mTrafficLightRedTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/traffic_light_red.png");
-    mTrafficLightGreenTexture = IMG_LoadTexture(mRenderer, "assets/images/environment/traffic_light_green.png");
 
     // Load ảnh các nhân vật Kirito & Asuna
     mPlayer.loadTextures(mRenderer);
@@ -2711,7 +2707,6 @@ void CGAME::exitGame() {
     if (mCicedragonTexture2) { SDL_DestroyTexture(mCicedragonTexture2); mCicedragonTexture2 = nullptr; }
 
     if (mBgMenuTexture) { SDL_DestroyTexture(mBgMenuTexture); mBgMenuTexture = nullptr; }
-    if (mBgPlayingTexture) { SDL_DestroyTexture(mBgPlayingTexture); mBgPlayingTexture = nullptr; }
     if (mSidewalkTopTexture) { SDL_DestroyTexture(mSidewalkTopTexture); mSidewalkTopTexture = nullptr; }
     if (mSidewalkBottomTexture) { SDL_DestroyTexture(mSidewalkBottomTexture); mSidewalkBottomTexture = nullptr; }
     if (mLaneRestTexture) { SDL_DestroyTexture(mLaneRestTexture); mLaneRestTexture = nullptr; }
