@@ -87,7 +87,7 @@ CGAME::CGAME()
       mLaneRestTexture(nullptr), mLaneForestTexture(nullptr), mLaneRoadTexture(nullptr),
       mCbluewingTexture(nullptr), mCskyarmorTexture(nullptr),
       mTrafficLightRedTexture(nullptr), mTrafficLightGreenTexture(nullptr),
-      mStage(1), mIsInfinityMode(false),
+      mStage(1), mIsInfinityMode(false), mPendingStageAdvance(false),
       mCameraY(0.0f), mLaneHeight(80), mInfiniteLevel(1), mLanePatternIndex(0),
       mSelectedMenuOption(0), mSelectedCharOption(0), mSelectedStageOption(0), mSelectedSettingsOption(0),
       mSelectedPauseOption(0), mSelectedSaveIndex(0), mSelectedLoadIndex(0),
@@ -307,9 +307,7 @@ void CGAME::handleInput() {
                     // Click Row to Select & Prompt Save Confirmation
                     else if (mx >= panelX + 20 && mx <= panelX + panelW - 20 && my >= yPos - 10.0f && my <= yPos + 45.0f) {
                         mSelectedSaveIndex = i;
-                        if (mIsInfinityMode) {
-                            mPendingSaveSlotIndex = i;
-                        }
+                        mPendingSaveSlotIndex = i;
                         break;
                     }
                 }
@@ -540,9 +538,7 @@ void CGAME::handleInput() {
                     }
                 }
                 else if (key == SDLK_RETURN || key == SDLK_SPACE) {
-                    if (mIsInfinityMode) {
-                        mPendingSaveSlotIndex = mSelectedSaveIndex;
-                    }
+                    mPendingSaveSlotIndex = mSelectedSaveIndex;
                 }
                 else if (key == SDLK_ESCAPE) {
                     mState = GameState::PAUSED;
@@ -628,9 +624,11 @@ void CGAME::handleInput() {
                 // Nhấn Y để chơi tiếp, ESC hoặc N quay lại Menu
                 if (key == SDLK_Y) {
                     if (mPlayer.isDead()) {
+                        // Chết → Retry stage hiện tại (giữ mStage)
                         resetGame();
                         mState = GameState::PLAYING;
                     } else {
+                        // Victory → Play Again từ Stage 1
                         mStage = 1;
                         resetGame();
                         mState = GameState::PLAYING;
@@ -690,8 +688,16 @@ void CGAME::physicsWorkerFunc() {
                         sa->Move(0, 1280);
                     }
 
-                    if (mPlayer.isFinish()) {
-                        mState = GameState::GAMEOVER;
+                    if (mPlayer.isFinish() && !mPendingStageAdvance.load()) {
+                        if (mStage < MAX_EASY_STAGE) {
+                            // Chuyển sang stage tiếp theo
+                            mStage++;
+                            mPendingStageAdvance.store(true);
+                            // Giữ PLAYING, main thread sẽ reset stage
+                        } else {
+                            // Hoàn thành stage cuối → Victory
+                            mState = GameState::GAMEOVER;
+                        }
                     }
                     else if (hitPlayerAgainstList(mPlayer, mGleameyes) ||
                         hitPlayerAgainstList(mPlayer, mCheathcliffs) ||
@@ -735,6 +741,15 @@ void CGAME::update(float deltaTime) {
     if (mFlashTimer > 0.0f) {
         mFlashTimer -= deltaTime;
         if (mFlashTimer < 0.0f) mFlashTimer = 0.0f;
+    }
+
+    // Xử lý chuyển stage Easy Mode trên main thread (tránh deadlock với physics thread)
+    if (mPendingStageAdvance.load()) {
+        mPendingStageAdvance.store(false);
+        std::lock_guard<std::mutex> lock(mGameMutex);
+        mPlayer.resetPosition();
+        mFlashTimer = 0.0f;
+        setupEasyModeObstacles();
     }
 }
 
@@ -811,9 +826,9 @@ void CGAME::render() {
                 if (mIsInfinityMode) {
                     mFont.drawTextCentered(mRenderer, "SCORE: " + std::to_string(mScore), 320, 2, whiteColor);
                 } else {
-                    mFont.drawTextCentered(mRenderer, "STAGE REACHED: " + std::to_string(mStage), 320, 2, whiteColor);
+                    mFont.drawTextCentered(mRenderer, "STAGE: " + std::to_string(mStage) + " / " + std::to_string(MAX_EASY_STAGE), 320, 2, whiteColor);
                 }
-                mFont.drawTextCentered(mRenderer, "PRESS 'Y' TO CONTINUE", 390, 2, whiteColor);
+                mFont.drawTextCentered(mRenderer, "PRESS 'Y' TO RETRY", 390, 2, whiteColor);
                 mFont.drawTextCentered(mRenderer, "PRESS 'ESC' TO GO TO MENU", 440, 1, {180, 180, 180, 255});
             } else {
                 // TRƯỜNG HỢP 2: CHIẾN THẮNG - Về đích Stage 3 thành công!
@@ -838,7 +853,7 @@ void CGAME::render() {
                 SDL_Color goldColor = {255, 215, 0, 255};
                 mFont.drawTextCentered(mRenderer, "VICTORY!", 240, 5, goldColor);
                 mFont.drawTextCentered(mRenderer, "CONGRATULATIONS, HERO!", 310, 2, whiteColor);
-                mFont.drawTextCentered(mRenderer, "YOU HAVE BEATEN THE CAMPAIGN!", 350, 2, whiteColor);
+                mFont.drawTextCentered(mRenderer, "YOU HAVE BEATEN ALL 5 STAGES!", 350, 2, whiteColor);
                 mFont.drawTextCentered(mRenderer, "PRESS 'Y' TO PLAY AGAIN", 410, 2, goldColor);
                 mFont.drawTextCentered(mRenderer, "PRESS 'ESC' TO GO TO MENU", 450, 1, {180, 180, 180, 255});
             }
@@ -1357,11 +1372,7 @@ void CGAME::renderSaveDialog() {
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 98, 4, titleShadow);
     mFont.drawTextCentered(mRenderer, "SAVE GAME", 96, 4, titleColor);
 
-    if (!mIsInfinityMode) {
-        mFont.drawTextCentered(mRenderer, "EASY MODE CANNOT BE SAVED! INFINITE MODE ONLY", 146, 2, warnSubtitleColor);
-    } else {
-        mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
-    }
+    mFont.drawTextCentered(mRenderer, "SELECT A SLOT TO SAVE YOUR PROGRESS", 146, 2, subtitleColor);
 
     float panelX = 240.0f, panelY = 210.0f;
     float panelW = 800.0f, panelH = 430.0f;
@@ -1443,11 +1454,7 @@ void CGAME::renderSaveDialog() {
     }
 
     SDL_Color guideColor = {255, 255, 255, 200};
-    if (!mIsInfinityMode) {
-        mFont.drawTextCentered(mRenderer, "CANNOT SAVE IN EASY MODE  -  PRESS ESC TO RETURN", 655, 1, guideColor);
-    } else {
-        mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
-    }
+    mFont.drawTextCentered(mRenderer, "UP / DOWN TO SELECT  -  ENTER TO SAVE  -  DEL / [X] TO DELETE  -  ESC TO CANCEL", 655, 1, guideColor);
 }
 
 void CGAME::renderLoadDialog() {
@@ -2363,7 +2370,7 @@ void CGAME::renderPlaying() {
 
     SDL_Color hudColor = {255, 255, 255, 255};
     SDL_Color cyanGlow = {80, 200, 255, 255};
-    std::string hudStageText = "MODE: EASY MODE";
+    std::string hudStageText = "STAGE: " + std::to_string(mStage) + " / " + std::to_string(MAX_EASY_STAGE);
     
     SDL_Color shadow = {0, 0, 0, 180};
     mFont.drawText(mRenderer, hudStageText, 22, 26, 2, shadow);
@@ -2395,15 +2402,23 @@ int CGAME::randomRange(int minValue, int maxValue) const {
 
 void CGAME::resetEasyMode() {
     mIsInfinityMode = false;
-    mStage = 1;
+    mScore = 0;
     mInfiniteLevel = 1;
     mCameraY = 0.0f;
     mLanes.clear();
+    mFlashTimer = 0.0f;
+    mPendingStageAdvance.store(false);
 
     mPlayer.resetPosition();
-    clearObstacles();
+    setupEasyModeObstacles();
+}
 
+void CGAME::setupEasyModeObstacles() {
+    clearObstacles();
     mTrafficLights.clear();
+
+    int count = mStage + 1;  // Stage 1→2, Stage 2→3, ..., Stage 5→6
+
     CTRAFFICLIGHT t1(120, 3.0f, 5.0f);
     t1.initTextures(mRenderer);
     CTRAFFICLIGHT t2(440, 3.0f, 5.0f);
@@ -2448,11 +2463,11 @@ void CGAME::resetEasyMode() {
         }
     };
 
-    spawnLane(LaneType::VEHICLE, 120, 3, -1);
-    spawnLane(LaneType::MONSTER, 200, 3, 1);
-    spawnLane(LaneType::MONSTER, 360, 3, 1);
-    spawnLane(LaneType::VEHICLE, 440, 3, -1);
-    spawnLane(LaneType::MONSTER, 520, 3, 1);
+    spawnLane(LaneType::VEHICLE, 120, count, -1);
+    spawnLane(LaneType::MONSTER, 200, count, 1);
+    spawnLane(LaneType::MONSTER, 360, count, 1);
+    spawnLane(LaneType::VEHICLE, 440, count, -1);
+    spawnLane(LaneType::MONSTER, 520, count, 1);
 }
 
 void CGAME::resetInfinite() {

@@ -53,6 +53,7 @@ struct Lane {
 
 class CGAME {
 private:
+    static const int MAX_EASY_STAGE = 5;
     SDL_Window* mWindow;
     SDL_Renderer* mRenderer;
     bool mIsRunning;
@@ -92,6 +93,7 @@ private:
 
     int mStage;
     bool mIsInfinityMode;
+    std::atomic<bool> mPendingStageAdvance;
 
     float mCameraY;
     int mLaneHeight;
@@ -167,6 +169,7 @@ private:
     void clearObstacles();
 
     void resetEasyMode();
+    void setupEasyModeObstacles();
     void resetInfinite();
     void initInfiniteLanes();
     void addLaneAbove();
