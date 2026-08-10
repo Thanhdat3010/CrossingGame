@@ -2381,6 +2381,9 @@ void CGAME::renderPlaying() {
 }
 
 void CGAME::startGame() {
+    mStage = 1;
+    mPendingStageAdvance.store(false);
+
     mSelectedCharOption = 0;
     mSelectedStageOption = 0;
     mState = GameState::CHAR_SELECT;
